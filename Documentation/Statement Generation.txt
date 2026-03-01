@@ -1,0 +1,22 @@
+1 *- NSGB Credit	Text	434127 Visa Gold,434126 Visa Classic
+1 *- NSGB Business	Text	421192 Visa Business
+3 *- AWB		Text	4297-40
+5 *- AIB		Text	454315 , 454773 , 431513, 441004 Electron	USD
+6 - AAIB		Text	
+7 *- BAI		PDF	Platenium : 402842, Visa Electron Debit : 403267, Visa Classic : 424128, Visa Gold : 424129
+10 *- BNP		Text	Gold : 427838, Classic : 427837
+4 - BMSR Save		Text
+14 *- BIC		Text	15/moth	406183,406184	
+16 - ABP		Text 	1/m
+6 - * AAIB		Text	1/m
+4 - * BMSR		Text	1/m
+25 - * AUB		PDF	1/m
+      FIB		Text	1/m
+4 - * BMSR Moga		Text	16/m
+4 - * BMSR Classic	Text	1/m		498835
+21 - * ZEN		Text	16/m
+15 - * SSB		PDF	1/m
+
+
+
+

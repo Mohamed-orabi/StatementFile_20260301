@@ -1,0 +1,7 @@
+     Line of first transaction = 18.
+     Printing of each transaction in 2 line (even if the second line is empty).
+     Each page contains 13 transactions.
+     Name1,Name2 represents full name of the customer, and MSCC can put full name in Name1,leave Name2 empty.
+     For Footer rec. : Last statement balance start from col 1 , length 17.
+                               Total debit start from col 18,length 17.
+                               Total credit start from col 36,length 17. 

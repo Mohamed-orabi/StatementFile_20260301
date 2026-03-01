@@ -1,0 +1,41 @@
+		protected void printHeader()
+		{
+			streamWrit.WriteLine("");
+			streamWrit.WriteLine("");
+			streamWrit.WriteLine("");
+			streamWrit.WriteLine(masterRow["customername"]);
+			streamWrit.WriteLine(masterRow["customeraddress1"]);
+			streamWrit.WriteLine(masterRow["customeraddress2"]);
+			streamWrit.WriteLine(masterRow["customeraddress3"]);
+			streamWrit.WriteLine("");
+			streamWrit.WriteLine("");
+			streamWrit.WriteLine("");
+			streamWrit.WriteLine(masterRow["cardno"]);
+			streamWrit.WriteLine("{0,8:dd/MM/yy}",masterRow["statementdatefrom"]);
+			streamWrit.WriteLine(masterRow["totalcredits"]);
+			streamWrit.WriteLine(masterRow["cardavailablelimit"]);
+			streamWrit.WriteLine("");
+			streamWrit.WriteLine(masterRow["mindueamount"]);
+			streamWrit.WriteLine("{0,8:dd/MM/yy}",masterRow["stetementduedate"]);
+			streamWrit.WriteLine("Page {0} of {1}",pageNo,totalPages);
+		}
+
+
+		protected void printDetail()
+		{
+			streamWrit.WriteLine(" {0,8:dd/MM/yy}{1,13}{2,-61}{3,12:f2}{4,2}",detailRow["transdate"],basText.trimStr(detailRow["refereneno"],13),basText.trimStr(detailRow["trandescription"],61),detailRow["origtranamount"],detailRow["billtranamountsign"]);
+//			Console.WriteLine(" {0,8:dd/MM/yy}{1,13}{2,-61}{3,12:f2}{4,2}",detailRow["transdate"],basText.getStrFromTo(detailRow["refereneno"],1,13),detailRow["trandescription"],detailRow["origtranamount"],detailRow["billtranamountsign"]);
+//			Console.WriteLine(" {0,8:dd/MM/yy}{1,13}{2,-51}{3,12:f2}{4,2}",detailRow["transdate"],Convert.ToString(detailRow["refereneno"]).Trim,detailRow["trandescription"],detailRow["origtranamount"],detailRow["billtranamountsign"]);
+//			streamWrit.WriteLine("{0,-8:dd/MM/yy}" ,detailRow["transdate"]);
+		}
+
+
+		protected void printFooter()
+		{
+			streamWrit.WriteLine(("Total for Card ").PadLeft(22,' ')+ masterRow["cardno"]);
+
+			/*if(curCardNo != PrevCardNo)
+			{
+				lastPageTotal = lastPageTotal + pageFooter;
+			}*/
+		}

@@ -1,0 +1,82 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema id="clsMerchantStatement" targetNamespace="http://tempuri.org/clsMerchantStatement.xsd" elementFormDefault="qualified" xmlns="http://tempuri.org/clsMerchantStatement.xsd" xmlns:mstns="http://tempuri.org/clsMerchantStatement.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+  <xs:element name="Statements">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="Statement">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="StatementNo" type="xs:int" minOccurs="0" />
+              <xs:element name="Account" type="xs:string" minOccurs="0" />
+              <xs:element name="AccountTypeName" type="xs:string" minOccurs="0" />
+              <xs:element name="CURRFULLNAME" type="xs:string" minOccurs="0" />
+              <xs:element name="Currency" type="xs:int" minOccurs="0" />
+              <xs:element name="CurrencyName" type="xs:string" minOccurs="0" />
+              <xs:element name="EndBalance" type="xs:decimal" minOccurs="0" />
+              <xs:element name="EndDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="Client" type="xs:string" minOccurs="0" />
+              <xs:element name="IdClient" type="xs:int" minOccurs="0" />
+              <xs:element name="ClientLat" type="xs:string" minOccurs="0" />
+              <xs:element name="Overdraft" type="xs:decimal" minOccurs="0" />
+              <xs:element name="StartBalance" type="xs:decimal" minOccurs="0" />
+              <xs:element name="StartDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="StatementType" type="xs:int" minOccurs="0" />
+              <xs:element name="SendType" type="xs:int" minOccurs="0" />
+              <xs:element name="TotalIn" type="xs:decimal" minOccurs="0" />
+              <xs:element name="TotalOut" type="xs:decimal" minOccurs="0" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:key name="StatementsNoKey">
+      <xs:selector xpath=".//mstns:Statement" />
+      <xs:field xpath="mstns:StatementNo" />
+    </xs:key>
+    <xs:key name="StatementsKey1">
+      <xs:selector xpath="." />
+      <xs:field xpath="mstns:Statement/mstns:StatementNo" />
+    </xs:key>
+  </xs:element>
+  <xs:element name="Operations">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="Operation">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="StatementNo" type="xs:int" minOccurs="0" />
+              <xs:element name="O" type="xs:int" minOccurs="0" />
+              <xs:element name="OD" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="TD" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="A" type="xs:decimal" minOccurs="0" />
+              <xs:element name="ACURC" type="xs:int" minOccurs="0" />
+              <xs:element name="ACURN" type="xs:string" minOccurs="0" />
+              <xs:element name="D" type="xs:string" minOccurs="0" />
+              <xs:element name="DE" type="xs:string" minOccurs="0" />
+              <xs:element name="P" type="xs:string" minOccurs="0" />
+              <xs:element name="OA" type="xs:decimal" minOccurs="0" />
+              <xs:element name="OCC" type="xs:int" minOccurs="0" />
+              <xs:element name="OC" type="xs:string" minOccurs="0" />
+              <xs:element name="TL" type="xs:string" minOccurs="0" />
+              <xs:element name="TERMN" type="xs:string" minOccurs="0" />
+              <xs:element name="CF" type="xs:int" minOccurs="0" />
+              <xs:element name="S" type="xs:int" minOccurs="0" />
+              <xs:element name="MN" type="xs:string" minOccurs="0" />
+              <xs:element name="DOCNO" type="xs:int" minOccurs="0" />
+              <xs:element name="NO" type="xs:int" minOccurs="0" />
+              <xs:element name="ACCOUNT" type="xs:string" minOccurs="0" />
+              <xs:element name="ACC" type="xs:string" minOccurs="0" />
+              <xs:element name="AMOUNTSING" type="xs:string" minOccurs="0" />
+              <xs:element name="FR" type="xs:string" minOccurs="0" />
+              <xs:element name="APPROVAL" type="xs:int" minOccurs="0" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:keyref name="StatementsOperations" refer="StatementsKey1">
+      <xs:selector xpath="." />
+      <xs:field xpath="mstns:Operation/mstns:StatementNo" />
+    </xs:keyref>
+  </xs:element>
+</xs:schema>

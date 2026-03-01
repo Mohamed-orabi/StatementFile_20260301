@@ -1,0 +1,9 @@
+1 – Individual Statement: -
+* Statement spool to be created on the card level to show all transaction per cardholder and this spool to be as same as the final credit statement spool created by your good self's.
+* The address box shows the company name and the cardholder name.
+* The spools to be created per currency too (1 for EGP & 1 for dual currency till we migrate all to 1 currency). 
+
+2- Consolidated Statement:- (On company level)
+? This statement to contain all the cards number, cardholders Name & his outstanding and to add all of them on Total Outstanding per company.
+? The address to be the company address only  
+

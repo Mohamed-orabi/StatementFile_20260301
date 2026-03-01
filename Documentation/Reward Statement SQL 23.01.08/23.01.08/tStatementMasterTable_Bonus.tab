@@ -1,0 +1,6 @@
+alter table tStatementMasterTable add EARNEDBONUS number;
+alter table tStatementMasterTable add REDEEMEDBONUS number;
+alter table tStatementMasterTable add EXPIREDBONUS number;
+alter table tStatementMasterTable add CREDITCONTRACTS VARCHAR2(100);
+
+

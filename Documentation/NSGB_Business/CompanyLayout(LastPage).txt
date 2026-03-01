@@ -1,0 +1,47 @@
+space:81                                                                        CurrentPageFlag:3
+space:81                                                                        cardproduct:25
+Customername:50                   
+space:81                                                                        cardbranchpartname:25
+space:81                                                                        statementdateto:10
+space:81                                                                        pageNo:5
+EmptyLine
+EmptyLine
+EmptyLine
+EmptyLine
+contractno:20  contractlimit:13  AccountAvailableLimit:20  MinDueAmount:13  stetementduedate:15  totaloverdueamount:13
+EmptyLine
+EmptyLine
+EmptyLine
+EmptyLine
+EmptyLine
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+space:2  cardno:16  cardclientname:50  Outstanding:16  Transaction:16
+EmptyLine
+space:17  'CurrentBalance':63  closingbalance:19   
+EmptyLine
+EmptyLine
+EmptyLine
+contractno:20  closingbalance:20  mindueamount:20  stetduedate:15  TotOutst:14  TotTran:14

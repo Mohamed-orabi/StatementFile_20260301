@@ -1,0 +1,54 @@
+EndOfPage
+space:81                                                                        CurrentPageFlag(F 0=Statement Contain 1 page only, F 1=First Page of multi pages, F 2=Middle Pages of multi pages, F 3=Last Page of multi pages):3
+space:81                                                                        statementdateto:25
+Customername:50                   
+space:81                                                                        PrimaryCardNo:25
+customeraddress1:50
+space:81                                                                        accountLimit:25
+customeraddress2:50
+space:81                                                                        MinDueAmount:10
+customeraddress3:50
+space:81                                                                        pageNo:5 totalPage:5
+EmptyLine
+EmptyLine
+EmptyLine
+EmptyLine
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+space:2  trnsDate(dd/MM):5  refereneno:20  TransDesc:40  origtranamount:16 billtranamount:16 CrDb:2 isSupplementCard("SUP"):3
+EmptyLine
+EmptyLine
+EmptyLine
+EmptyLine
+OPENINGBALANCE:20  TOTALPURCHASES:20  TOTALPURCHASES+TOTALCASHWITHDRAWA:20 closingbalance:20
+EmptyLine
+EmptyLine
+EmptyLine
+EmptyLine
+EmptyLine
+space:81                                                                        accountno:25
+Customername:50                   
+space:81                                                                        PrimaryCardNo:20
+customeraddress1:50
+customeraddress2:50
+customeraddress3:50
+space:81                                                                        TOTALPAYMENTS:20
+EmptyLine

@@ -1,0 +1,600 @@
+NSGB
+TAREK A M FAYED
+رقم 5 شارع شامبليون وسط البلد تبسيشا 87 اتيبنس 98
+ينب تيسبا
+
+Heliopolis
+القاهرة
+EGYPT
+1
+ 
+ 
+30/06/06
+NSGB
+4211920000013272-0
+EGP 1000.00
+EGP 875.00
+1 of 2
+ 
+ 
+Transaction for Primary Card no. 4211920000013272-0
+                        Previous Balance                                                      0.00
+30/06/2006      23287   Customer card maintenance fee                                       125.00 DB
+                        Close Balance                                                       125.00
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+0.00
+0.00
+0.00
+0.00
+125.00
+0.00
+125.00
+ 
+Test Promotional Message ---  Test Promotional Message ---  Test Promotional Message ---  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+NSGB
+TAREK A M FAYED
+رقم 5 شارع شامبليون وسط البلد تبسيشا 87 اتيبنس 98
+ينب تيسبا
+
+Heliopolis
+القاهرة
+EGYPT
+1
+ 
+ 
+30/06/06
+NSGB
+4211920000013272-0
+USD 0.00
+USD 62.23
+2 of 2 END 
+ 
+ 
+Transaction for Primary Card no. 4211920000013272-0
+                        Previous Balance                                                      4.68
+01/08/2005      155     Charge interest for Retail operations                                 0.84 DB
+17/08/2005      191     Late Payment Charges                                                 30.00 DB
+31/08/2005      268     Charge interest for Interest and Fees                                 0.01 DB
+31/08/2005      268     Charge interest for Retail operations                                 0.55 DB
+14/09/2005      311     Credit acct                                                          67.75 CR
+29/09/2005      372     Late Payment Charges                                                 30.00 CR
+29/09/2005      372     Credit interest                                                       0.56 CR
+                        Close Balance                                                        62.23 CR
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+4.68
+0.00
+0.00
+1.40
+-0.56
+67.75
+62.23 CR
+ 
+Test Promotional Message ---  Test Promotional Message ---  Test Promotional Message ---  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+NSGB
+AHMED MAHMOUD ABOU EL SAAD
+رقم 4 ميدان أحمد سامي السعيد
+
+
+الدقى
+الجيزة
+EGYPT
+1
+ 
+ 
+30/06/06
+NSGB
+4211920000010906-0
+EGP 20000.00
+EGP 1997.35
+1 of 3
+ 
+ 
+Transaction for Primary Card no. 4211920000010906-0
+                        Previous Balance                                                      0.00
+21/11/2005      520     Purchase at FOUR SEASONS HOTEL       GIZA         EG Original       376.16 DB
+                        currency Amount 376.16 (EGP) RATE   1.0000 EGP EGP 17/11/05    
+30/11/2005      591     Purchase at ETAMCO ABOU RAWASH       GIZA         EG Original      1768.21 DB
+                        currency Amount 1768.21 (EGP) RATE   1.0000 EGP EGP 28/11/05   
+06/12/2005      610     Purchase at THOMAS COOK              DOKKI - GIZA EG Original      9932.00 DB
+                        currency Amount 9932.00 (EGP) RATE   1.0000 EGP EGP 04/12/05   
+13/12/2005      661     Purchase at ROYAL GROUP FOR TRAD     GIZA         EG Original       335.22 DB
+                        currency Amount 335.22 (EGP) RATE   1.0000 EGP EGP 09/12/05    
+15/12/2005      689     Late Payment Charges                                                 30.00 DB
+26/12/2005      14171   Credit acct                                                        2144.37 CR
+31/12/2005      17404   Charge interest for Retail operations                                26.80 DB
+                        Close Balance                                                     10324.02
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+0.00
+0.00
+12411.59
+26.80
+30.00
+2144.37
+10324.02
+ 
+Test Promotional Message ---  Test Promotional Message ---  Test Promotional Message ---  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+NSGB
+AHMED MAHMOUD ABOU EL SAAD
+رقم 4 ميدان أحمد سامي السعيد
+
+
+الدقى
+الجيزة
+EGYPT
+1
+ 
+ 
+30/06/06
+NSGB
+4211920000010906-0
+USD 0.00
+USD 0.00
+2 of 3
+ 
+ 
+Transaction for Primary Card no. 4211920000010906-0
+                        Previous Balance                                                      0.00
+27/11/2005      544     Purchase at RADISSON SAS MARTINEZ HO BEIRUT       LB Original       104.87 DB
+                        currency Amount 104.87 (USD) RATE   1.0000 USD USD 24/11/05    
+14/12/2005      663     Purchase at VAN HEUSEN 256           ORLANDO      US Original        80.90 DB
+                        currency Amount 80.90 (USD) RATE   1.0000 USD USD 12/12/05     
+14/12/2005      664     Purchase at GEOFFREY BEENE #152      ORLANDO      US Original        79.85 DB
+                        currency Amount 79.85 (USD) RATE   1.0000 USD USD 12/12/05     
+14/12/2005      665     Purchase at ROSS STORE #350          ORLANDO      US Original        54.27 DB
+                        currency Amount 54.27 (USD) RATE   1.0000 USD USD 12/12/05     
+14/12/2005      666     Purchase at BED BATH & BEYOND #90    ORLANDO      US Original        39.37 DB
+                        currency Amount 39.37 (USD) RATE   1.0000 USD USD 12/12/05     
+14/12/2005      667     Purchase at CALVIN KLEIN #024        ORLANDO      US Original        37.27 DB
+                        currency Amount 37.27 (USD) RATE   1.0000 USD USD 12/12/05     
+14/12/2005      668     Purchase at LONDON FOG #153          ORLANDO      US Original       265.71 DB
+                        currency Amount 265.71 (USD) RATE   1.0000 USD USD 12/12/05    
+14/12/2005      669     Purchase at JCPENNEY STORE 0321      ALTAMONTE SP US Original        77.00 DB
+                        currency Amount 77.00 (USD) RATE   1.0000 USD USD 13/12/05     
+15/12/2005      671     Purchase at WM SUPERCENTER           ORLANDO   SW US Original       104.25 DB
+                        currency Amount 104.25 (USD) RATE   1.0000 USD USD 13/12/05    
+15/12/2005      672     Purchase at FLORSHEIM SHOE 311       ORLANDO      US Original       202.35 DB
+                        currency Amount 202.35 (USD) RATE   1.0000 USD USD 14/12/05    
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+NSGB
+AHMED MAHMOUD ABOU EL SAAD
+رقم 4 ميدان أحمد سامي السعيد
+
+
+الدقى
+الجيزة
+EGYPT
+1
+ 
+ 
+30/06/06
+NSGB
+4211920000010906-0
+USD 0.00
+USD 0.00
+3 of 3 END 
+ 
+ 
+ 
+ 
+15/12/2005      689     Late Payment Charges                                                 30.00 DB
+19/12/2005      12299   Purchase at WESTGATE LAKES TIMESHA   ORLANDO      US Original         4.30 DB
+                        currency Amount 4.30 (USD) RATE   1.0000 USD USD 17/12/05      
+20/12/2005      13998   Purchase at FLMNGO HILTON LINDYS     702-7333159  US Original        65.03 DB
+                        currency Amount 65.03 (USD) RATE   1.0000 USD USD 18/12/05     
+20/12/2005      13999   Purchase at VICTORVILLE GROCERY      VICTORVILLE  US Original        14.98 DB
+                        currency Amount 14.98 (USD) RATE   1.0000 USD USD 18/12/05     
+22/12/2005      14155   Purchase at ROB MAY/MEIER & FRANK #5 LAS VEGAS    US Original        46.04 DB
+                        currency Amount 46.04 (USD) RATE   1.0000 USD USD 20/12/05     
+31/12/2005      17722   Purchase at GAP #6204/THE            LAS VEGAS    US Original        58.19 DB
+                        currency Amount 58.19 (USD) RATE   1.0000 USD USD 20/12/05     
+31/12/2005      17404   Charge interest for Retail operations                                 1.63 DB
+                        Close Balance                                                      1266.01
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+0.00
+0.00
+1234.38
+1.63
+30.00
+0.00
+1266.01
+ 
+Test Promotional Message ---  Test Promotional Message ---  Test Promotional Message ---  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+NSGB
+TEST CLASSIC A
+
+
+
+
+
+
+1
+ 
+ 
+30/06/06
+NSGB
+4341760010543279-0
+EGP 1500.00
+EGP -1250.00
+1 of 2
+ 
+ 
+Transaction for Primary Card no. 4341760010543279-0
+                        Previous Balance                                                      0.00
+01/01/2006      23456   Purchase at MTA Vending Machine Sale 212-METROCAR US Original       200.00 DB
+                        currency Amount 200.00 (EGP) RATE   1.0000 EGP EGP 01/01/06    
+01/01/2006      23457   Cash withdrawal at Al MOAIBED HOTEL         DAMMAM       SA         200.00 DB
+                        Original currency Amount 200.00 (EGP) RATE   1.0000 EGP EGP    
+                        01/01/06                                                       
+03/01/2006      23620   Merchandize return at MTA Vending Machine Sale 212 - Metroc US      200.00 CR
+                        Original currency Amount 200.00 (EGP) RATE   1.0000 EGP EGP    
+                        20/02/06                                                       
+03/01/2006      23659   Card issuance fee                                                   125.00 DB
+03/01/2006      23661   Card issuance fee                                                   125.00 DB
+15/01/2006      23566   Purchase at MTA VENDING MACHINE SALE 212-METROCAR US Original       500.00 DB
+                        currency Amount 500.00 (EGP) RATE   1.0000 EGP EGP 10/01/06    
+EGP Transactions for Supplementary Card no. 4341260000026286-0
+18/01/2006      23569   Purchase at MTA VENDING Machine SALE 234-NewYork  US Original       250.00 DB
+                        currency Amount 250.00 (EGP) RATE   1.0000 EGP EGP 12/01/06    
+18/01/2006      23570   Cash withdrawal at AL MOAIBED HOTEL         DAMMAM       SA        1000.00 DB
+                        Original currency Amount 1000.00 (EGP) RATE   1.0000 EGP EGP   
+                        18/01/06                                                       
+EGP Transactions for Supplementary Card no. 4341260000018994-0
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+NSGB
+TEST CLASSIC A
+
+
+
+
+
+
+1
+ 
+ 
+30/06/06
+NSGB
+4341760010543279-0
+EGP 1500.00
+EGP -1250.00
+2 of 2 END 
+ 
+ 
+ 
+ 
+22/01/2006      23571   Purchase at Samiramis Hotel          Cairo        EG Original       550.00 DB
+                        currency Amount 550.00 (EGP) RATE   1.0000 EGP EGP 21/01/06    
+                        Close Balance                                                      2750.00
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+0.00
+1200.00
+1500.00
+0.00
+50.00
+0.00
+2750.00
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+NSGB
+TEST CLASSIC B
+
+
+
+
+
+
+1
+ 
+ 
+30/06/06
+NSGB
+4341760010857943-0
+EGP 1500.00
+EGP 1000.00
+1 of 1 END 
+ 
+ 
+Transaction for Primary Card no. 4341760010857943-0
+                        Previous Balance                                                      0.00
+22/01/2006      23572   Cash withdrawal at City Stars               Alex         EG         500.00 DB
+                        Original currency Amount 500.00 (EGP) RATE   1.0000 EGP EGP    
+                        21/01/06                                                       
+                        Close Balance                                                       500.00
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+0.00
+500.00
+0.00
+0.00
+0.00
+0.00
+500.00
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+NSGB
+TEST CLASSIC C
+
+
+
+
+
+
+1
+ 
+ 
+30/06/06
+NSGB
+4341760010362324-0
+EGP 1500.00
+EGP 700.00
+1 of 1 END 
+ 
+ 
+Transaction for Primary Card no. 4341760010362324-0
+                        Previous Balance                                                      0.00
+01/01/2006      23458   Purchase at Addidas                  NewYork      US Original       800.00 DB
+                        currency Amount 800.00 (EGP) RATE   1.0000 EGP EGP 01/01/06    
+03/01/2006      23621   Cash withdrawal at ABC Hotel                Paris        FR         300.00 DB
+                        Original currency Amount 300.00 (EGP) RATE   1.0000 EGP EGP    
+                        19/03/06                                                       
+03/01/2006      23622   Cash withdrawal at ABC Hotel                Paris        FR         300.00 CR
+                        Original currency Amount 300.00 (EGP) RATE   1.0000 EGP EGP    
+                        19/03/06                                                       
+                        Close Balance                                                       800.00
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+0.00
+0.00
+800.00
+0.00
+0.00
+0.00
+800.00
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+NSGB
+TEST CLASSIC D
+
+
+
+
+
+
+1
+ 
+ 
+30/06/06
+NSGB
+4341760010771862-0
+EGP 1500.00
+EGP 920.00
+1 of 1 END 
+ 
+ 
+Transaction for Primary Card no. 4341760010771862-0
+                        Previous Balance                                                      0.00
+03/01/2006      23624   Purchase at MTA Nending Machine Sale 212-Metrocar US Original       200.00 DB
+                        currency Amount 200.00 (EGP) RATE   1.0000 EGP EGP 20/04/06    
+03/01/2006      23625   Purchase at MTA Vending Machine Sale 212-Metrocar US Original       500.00 DB
+                        currency Amount 500.00 (EGP) RATE   1.0000 EGP EGP 12/05/06    
+03/01/2006      23627   Purchase at MTA Vending Machine Sale 212          US Original       450.00 CR
+                        currency Amount 450.00 (EGP) RATE   1.0000 EGP EGP 20/05/06    
+03/01/2006      23626   Cash withdrawal at Al MOAIBED HOTEL         DAMMAM       SA         180.00 DB
+                        Original currency Amount 180.00 (EGP) RATE   1.0000 EGP EGP    
+                        10/06/06                                                       
+03/01/2006      23628   Purchase at MTA Vending Machine Sale 212-METROCAR US Original       100.00 DB
+                        currency Amount 100.00 (EGP) RATE   1.0000 EGP EGP 19/09/06    
+03/01/2006      23629   Cash withdrawal at Al Moaibed Hotel         Dammam       SA          50.00 DB
+                        Original currency Amount 50.00 (EGP) RATE   1.0000 EGP EGP     
+                        20/09/06                                                       
+                        Close Balance                                                       580.00
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+0.00
+230.00
+350.00
+0.00
+0.00
+0.00
+580.00
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
