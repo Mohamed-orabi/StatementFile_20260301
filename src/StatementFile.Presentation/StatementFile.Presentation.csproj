@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>StatementFile</AssemblyName>
+    <RootNamespace>StatementFile.Presentation</RootNamespace>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <LangVersion>7.3</LangVersion>
+    <ApplicationIcon>..\..\StatementFile.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StatementFile.Domain\StatementFile.Domain.csproj" />
+    <ProjectReference Include="..\StatementFile.Application\StatementFile.Application.csproj" />
+    <ProjectReference Include="..\StatementFile.Infrastructure\StatementFile.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!--
+    App.config is read by AppConfigurationService (Infrastructure).
+    Copy it to the output directory so it is always present at runtime.
+  -->
+  <ItemGroup>
+    <None Update="App.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
