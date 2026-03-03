@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>StatementFile.Infrastructure</AssemblyName>
     <RootNamespace>StatementFile.Infrastructure</RootNamespace>
     <Nullable>disable</Nullable>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>10</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,15 +14,21 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Oracle ODP.NET Managed Driver -->
-    <PackageReference Include="Oracle.ManagedDataAccess" Version="21.13.0" />
+    <!-- Oracle ODP.NET Managed Driver (.NET Core / .NET 8) -->
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.6.0" />
 
     <!-- JSON configuration files -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 
     <!--
-      Crystal Reports: must be referenced via legacy HintPath if not on NuGet.
-      Adjust the path to match your installation.
+      System.Configuration.ConfigurationManager brings App.config support to .NET 8.
+      AppConfigurationService reads SmtpServer, ServerName, MainSchema, etc. from it.
+    -->
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+
+    <!--
+      Crystal Reports: must be referenced via legacy HintPath.
+      Requires the SAP Crystal Reports runtime. Adjust path to match your installation.
     -->
     <Reference Include="CrystalDecisions.CrystalReports.Engine">
       <HintPath>..\..\..\libs\CrystalDecisions.CrystalReports.Engine.dll</HintPath>

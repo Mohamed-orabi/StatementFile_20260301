@@ -1,0 +1,337 @@
+@page "/"
+@rendermode InteractiveServer
+@inject CompositionRoot Root
+@inject AppState AppState
+@inject NavigationManager Nav
+
+<PageTitle>Statement Generation — StatementFile</PageTitle>
+
+@if (!AppState.IsLoggedIn)
+{
+    Nav.NavigateTo("/login", replace: true);
+    return;
+}
+
+<h4 class="mb-3">Statement Generation</h4>
+
+<div class="row g-4">
+
+    <!-- ── Left: Product list ───────────────────────────────────────────────── -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Products to Process</span>
+                <small class="text-muted">@SelectedCount selected</small>
+            </div>
+            <div class="card-body p-0" style="max-height:420px;overflow-y:auto">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th style="width:36px">
+                                <input type="checkbox"
+                                       class="form-check-input"
+                                       @onchange="ToggleAll"
+                                       checked="@AllSelected" />
+                            </th>
+                            <th>Bank</th>
+                            <th>Product</th>
+                            <th>Formatter</th>
+                            <th style="width:36px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Products)
+                        {
+                            <tr class="@(p.Selected ? "table-primary" : "")">
+                                <td>
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           @bind="p.Selected" />
+                                </td>
+                                <td>
+                                    <strong>@p.BankName</strong>
+                                    <br /><small class="text-muted">@p.BankFullName</small>
+                                </td>
+                                <td>
+                                    @p.CardProduct
+                                    <br /><small class="text-muted">@p.StatementTypeSuffix · Branch @p.BranchCode</small>
+                                </td>
+                                <td>
+                                    <small class="badge bg-secondary">@p.OutputType</small>
+                                    <br /><small class="text-muted" style="font-size:10px">@p.FormatterKey</small>
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline-danger btn-sm"
+                                            title="Remove"
+                                            @onclick="() => Products.Remove(p)">
+                                        &times;
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                        @if (Products.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    No products added. Use the form on the right to add one.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Right: Add-product form + actions ────────────────────────────────── -->
+    <div class="col-lg-6">
+
+        <!-- Add product form -->
+        <div class="card mb-3">
+            <div class="card-header">Add Product</div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label form-label-sm">Bank Full Name</label>
+                        <input class="form-control form-control-sm"
+                               @bind="Draft.BankFullName"
+                               placeholder="e.g. United Bank for Africa" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label form-label-sm">Bank Code</label>
+                        <input class="form-control form-control-sm"
+                               @bind="Draft.BankName"
+                               placeholder="e.g. UBA" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label form-label-sm">Branch Code</label>
+                        <input type="number" class="form-control form-control-sm"
+                               @bind="Draft.BranchCode" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label form-label-sm">Card Product</label>
+                        <input class="form-control form-control-sm"
+                               @bind="Draft.CardProduct"
+                               placeholder="e.g. UBACR" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label form-label-sm">Type Suffix</label>
+                        <input class="form-control form-control-sm"
+                               @bind="Draft.StatementTypeSuffix"
+                               placeholder="CR / DB / CP" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label form-label-sm">Formatter Key</label>
+                        <input class="form-control form-control-sm"
+                               @bind="Draft.FormatterKey"
+                               placeholder="e.g. HTML_UBA" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label form-label-sm">Output Type</label>
+                        <InputSelect class="form-select form-select-sm"
+                                     @bind-Value="Draft.OutputType">
+                            @foreach (var v in Enum.GetValues<StatementOutputType>())
+                            {
+                                <option value="@v">@v</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label form-label-sm">Statement Date</label>
+                        <input type="date" class="form-control form-control-sm"
+                               @bind="Draft.StatementDate"
+                               @bind:format="yyyy-MM-dd" />
+                    </div>
+                    <div class="col-6 d-flex align-items-end">
+                        <button class="btn btn-sm btn-primary w-100"
+                                @onclick="AddProduct"
+                                disabled="@string.IsNullOrWhiteSpace(Draft.FormatterKey)">
+                            Add to List
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Processing mode flags -->
+                <hr class="my-2" />
+                <small class="text-muted d-block mb-1">Processing Modes</small>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var mode in AvailableModes)
+                    {
+                        <div class="form-check form-check-inline mb-0">
+                            <input class="form-check-input" type="checkbox"
+                                   id="mode_@mode"
+                                   checked="@Draft.Modes.HasFlag(mode)"
+                                   @onchange="e => ToggleMode(mode, (bool)e.Value)" />
+                            <label class="form-check-label" for="mode_@mode">
+                                <small>@mode</small>
+                            </label>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="d-flex gap-2 mb-3">
+            <button class="btn btn-success"
+                    @onclick="RunGeneration"
+                    disabled="@(IsRunning || SelectedCount == 0)">
+                @(IsRunning ? "Running…" : $"Generate ({SelectedCount})")
+            </button>
+            <button class="btn btn-outline-secondary"
+                    @onclick="CancelGeneration"
+                    disabled="@(!IsRunning)">
+                Cancel
+            </button>
+        </div>
+
+        <!-- Progress -->
+        @if (IsRunning || StatusLog.Count > 0)
+        {
+            <div class="progress mb-2" style="height:18px">
+                <div class="progress-bar bg-success progress-bar-striped @(IsRunning ? "progress-bar-animated" : "")"
+                     style="width:@ProgressPct%">
+                    @ProgressPct%
+                </div>
+            </div>
+            <div class="border rounded p-2 bg-light"
+                 style="max-height:220px;overflow-y:auto;font-size:12px;font-family:monospace"
+                 id="statusLog">
+                @foreach (var entry in StatusLog)
+                {
+                    <div class="@(entry.IsError ? "text-danger" : "")">
+                        <span class="text-muted">[@entry.Time.ToString("HH:mm:ss")]</span>
+                        @entry.Text
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    // ── Product list ───────────────────────────────────────────────────────────
+    private List<ProductEntry>  Products { get; } = new();
+    private ProductEntry        Draft    { get; } = new() { StatementDate = DateTime.Today };
+
+    private int  SelectedCount => Products.Count(p => p.Selected);
+    private bool AllSelected   => Products.Count > 0 && Products.All(p => p.Selected);
+
+    private static readonly ProcessingMode[] AvailableModes = Enum
+        .GetValues<ProcessingMode>()
+        .Where(m => m != ProcessingMode.Standard)
+        .ToArray();
+
+    private void AddProduct()
+    {
+        Products.Add(new ProductEntry
+        {
+            Selected            = true,
+            BankName            = Draft.BankName,
+            BankFullName        = Draft.BankFullName,
+            BranchCode          = Draft.BranchCode,
+            CardProduct         = Draft.CardProduct,
+            OutputType          = Draft.OutputType,
+            FormatterKey        = Draft.FormatterKey,
+            StatementTypeSuffix = Draft.StatementTypeSuffix,
+            Modes               = Draft.Modes,
+            StatementDate       = Draft.StatementDate,
+            EmailFromAddress    = Draft.EmailFromAddress,
+            RewardContractCondition = Draft.RewardContractCondition,
+        });
+    }
+
+    private void ToggleAll(ChangeEventArgs e)
+    {
+        bool check = (bool)e.Value;
+        foreach (var p in Products) p.Selected = check;
+    }
+
+    private void ToggleMode(ProcessingMode mode, bool on)
+    {
+        Draft.Modes = on
+            ? Draft.Modes | mode
+            : Draft.Modes & ~mode;
+    }
+
+    // ── Generation ─────────────────────────────────────────────────────────────
+    private bool                    IsRunning   { get; set; }
+    private int                     ProgressPct { get; set; }
+    private List<LogEntry>          StatusLog   { get; } = new();
+    private CancellationTokenSource _cts;
+
+    private async Task RunGeneration()
+    {
+        _cts        = new CancellationTokenSource();
+        IsRunning   = true;
+        ProgressPct = 0;
+        StatusLog.Clear();
+
+        var selected    = Products.Where(p => p.Selected).ToList();
+        string rootPath = Root.ConfigService.GetStatementOutputPath();
+        int    total    = selected.Count;
+        int    done     = 0;
+
+        try
+        {
+            foreach (var product in selected)
+            {
+                if (_cts.Token.IsCancellationRequested) break;
+
+                Log($"▶ {product.BankName} / {product.CardProduct}");
+
+                await Task.Run(() =>
+                {
+                    // Step 1: Bulk maintenance
+                    var bulkCmd = new RunBulkMaintenanceCommand(
+                        branchCode:        product.BranchCode,
+                        runCardBranchMatch: true,
+                        runArabicAddressFix: product.Modes.HasFlag(ProcessingMode.FixArabicAddress),
+                        runOnHoldDelete:    product.Modes.HasFlag(ProcessingMode.DeleteOnHold),
+                        runRewardFix:       product.Modes.HasFlag(ProcessingMode.Reward));
+
+                    var bulkResult = Root.BulkHandler.Handle(bulkCmd);
+                    if (bulkResult.IsFailure)
+                        LogError($"  Maintenance warning: {bulkResult.Error}");
+
+                    // Step 2: Statement generation
+                    var genCmd    = product.BuildCommand(rootPath);
+                    var handler   = Root.CreateStatementHandler();
+                    var genResult = handler.Handle(genCmd);
+
+                    if (genResult.IsSuccess)
+                        Log($"  ✔ {genResult.Value.FilesGenerated} file(s) → {genResult.Value.OutputDirectory}");
+                    else
+                        LogError($"  ✘ {genResult.Error}");
+
+                }, _cts.Token);
+
+                done++;
+                ProgressPct = (int)Math.Round(done * 100.0 / total);
+                await InvokeAsync(StateHasChanged);
+            }
+
+            Log(_cts.Token.IsCancellationRequested ? "Cancelled." : "Done.");
+        }
+        finally
+        {
+            IsRunning = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CancelGeneration() => _cts?.Cancel();
+
+    private void Log(string text) =>
+        StatusLog.Add(new LogEntry { Text = text, Time = DateTime.Now });
+
+    private void LogError(string text) =>
+        StatusLog.Add(new LogEntry { Text = text, Time = DateTime.Now, IsError = true });
+
+    private sealed class LogEntry
+    {
+        public string   Text    { get; init; }
+        public DateTime Time    { get; init; }
+        public bool     IsError { get; init; }
+    }
+}

@@ -1,0 +1,43 @@
+@inject AppState AppState
+@inject NavigationManager Nav
+
+@if (AppState.IsLoggedIn)
+{
+    <NavLink class="nav-link text-white-50 d-block mb-1 ps-1"
+             href="/"
+             Match="NavLinkMatch.All"
+             ActiveClass="text-white fw-semibold">
+        Statement Generation
+    </NavLink>
+
+    <NavLink class="nav-link text-white-50 d-block mb-1 ps-1"
+             href="/merchant"
+             ActiveClass="text-white fw-semibold">
+        Merchant Statement
+    </NavLink>
+
+    <hr class="border-secondary mt-3 mb-2" />
+
+    <small class="text-secondary d-block mb-2">@AppState.UserName</small>
+
+    <button class="btn btn-outline-light btn-sm w-100" @onclick="Logout">
+        Logout
+    </button>
+}
+else
+{
+    <NavLink class="nav-link text-white-50 d-block mb-1 ps-1"
+             href="/login"
+             ActiveClass="text-white fw-semibold">
+        Login
+    </NavLink>
+}
+
+@code {
+    private void Logout()
+    {
+        AppState.IsLoggedIn = false;
+        AppState.UserName   = string.Empty;
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+}
