@@ -1,6 +1,6 @@
 @page "/merchant"
 @rendermode InteractiveServer
-@inject CompositionRoot Root
+@inject IMerchantStatementApiClient MerchantApi
 @inject AppState AppState
 @inject NavigationManager Nav
 
@@ -113,25 +113,19 @@
         Busy          = true;
         ResultMessage = string.Empty;
 
-        // Write the uploaded XML to a temp file so the handler can read it.
-        string tempXml = Path.GetTempFileName() + ".xml";
         try
         {
-            await File.WriteAllBytesAsync(tempXml, UploadedBytes);
+            var result = await MerchantApi.ProcessAsync(new MerchantProcessRequest
+            {
+                BankFullName     = BankFullName,
+                BankName         = BankName,
+                BankCode         = BankCode,
+                ProcessingDate   = ProcessingDate,
+                XmlContentBase64 = Convert.ToBase64String(UploadedBytes),
+            });
 
-            var cmd = new ProcessMerchantStatementCommand(
-                xmlSourceFilePath: tempXml,
-                bankFullName:      BankFullName,
-                bankName:          BankName,
-                bankCode:          BankCode,
-                processingDate:    ProcessingDate);
-
-            var result = await Task.Run(() => Root.MerchantHandler.Handle(cmd));
-
-            ResultIsError = result.IsFailure;
-            ResultMessage = result.IsSuccess
-                ? "Processed successfully."
-                : $"Error: {result.Error}";
+            ResultIsError = !result.Success;
+            ResultMessage = result.Message;
         }
         catch (Exception ex)
         {
@@ -140,7 +134,6 @@
         }
         finally
         {
-            if (File.Exists(tempXml)) File.Delete(tempXml);
             Busy = false;
         }
     }

@@ -1,7 +1,7 @@
 @page "/"
 @rendermode InteractiveServer
-@inject CompositionRoot Root
 @inject IBankProductConfigApiClient BankConfigApi
+@inject IStatementGenerationApiClient GenerationApi
 @inject AppState AppState
 @inject NavigationManager Nav
 
@@ -248,15 +248,14 @@
     private void AddFromCatalog(BankProductConfigDto cfg)
     {
         bool alreadyQueued = Products.Any(p =>
-            p.BranchCode    == cfg.BranchCode   &&
-            p.FormatterKey  == cfg.FormatterKey  &&
-            p.CardProduct   == cfg.CardProduct   &&
+            p.ConfigId      == cfg.Id            &&
             p.StatementDate == DefaultStatementDate);
 
         if (alreadyQueued) return;
 
         Products.Add(new ProductEntry
         {
+            ConfigId                = cfg.Id,
             Selected                = true,
             BankName                = cfg.BankName,
             BankFullName            = cfg.BankFullName,
@@ -291,10 +290,9 @@
         ProgressPct = 0;
         StatusLog.Clear();
 
-        var selected    = Products.Where(p => p.Selected).ToList();
-        string rootPath = Root.ConfigService.GetStatementOutputPath();
-        int    total    = selected.Count;
-        int    done     = 0;
+        var selected = Products.Where(p => p.Selected).ToList();
+        int total    = selected.Count;
+        int done     = 0;
 
         try
         {
@@ -304,29 +302,23 @@
 
                 Log($"▶ {product.BankName} / {product.CardProduct}");
 
-                await Task.Run(() =>
+                try
                 {
-                    var bulkCmd = new RunBulkMaintenanceCommand(
-                        branchCode:          product.BranchCode,
-                        runCardBranchMatch:  true,
-                        runArabicAddressFix: product.Modes.HasFlag(ProcessingMode.FixArabicAddress),
-                        runOnHoldDelete:     product.Modes.HasFlag(ProcessingMode.DeleteOnHold),
-                        runRewardFix:        product.Modes.HasFlag(ProcessingMode.Reward));
+                    var result = await GenerationApi.RunAsync(new StatementRunRequest
+                    {
+                        ConfigId      = product.ConfigId,
+                        StatementDate = product.StatementDate,
+                    });
 
-                    var bulkResult = Root.BulkHandler.Handle(bulkCmd);
-                    if (bulkResult.IsFailure)
-                        LogError($"  Maintenance warning: {bulkResult.Error}");
-
-                    var genCmd    = product.BuildCommand(rootPath);
-                    var handler   = Root.CreateStatementHandler();
-                    var genResult = handler.Handle(genCmd);
-
-                    if (genResult.IsSuccess)
-                        Log($"  ✔ {genResult.Value.FilesGenerated} file(s) → {genResult.Value.OutputDirectory}");
+                    if (result.Success)
+                        Log($"  ✔ {result.FilesGenerated} file(s) → {result.OutputDirectory}");
                     else
-                        LogError($"  ✘ {genResult.Error}");
-
-                }, _cts.Token);
+                        LogError($"  ✘ {result.Error}");
+                }
+                catch (Exception ex)
+                {
+                    LogError($"  ✘ {ex.Message}");
+                }
 
                 done++;
                 ProgressPct = (int)Math.Round(done * 100.0 / total);

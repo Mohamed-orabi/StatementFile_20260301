@@ -1,6 +1,6 @@
 @page "/login"
 @rendermode InteractiveServer
-@inject CompositionRoot Root
+@inject IAuthApiClient AuthApi
 @inject AppState AppState
 @inject NavigationManager Nav
 
@@ -62,12 +62,13 @@
 
         try
         {
-            // Validate credentials by opening (and immediately disposing) a UnitOfWork.
-            // Legacy behaviour: frmBasLogin opened a raw OracleConnection here.
-            await Task.Run(() =>
+            // Verify Oracle connectivity via the API before allowing the user in.
+            bool ok = await AuthApi.PingAsync();
+            if (!ok)
             {
-                using var uow = Root.CreateUnitOfWork();
-            });
+                ErrorMessage = "Login failed: database is unavailable.";
+                return;
+            }
 
             AppState.IsLoggedIn = true;
             AppState.UserName   = Model.UserName;

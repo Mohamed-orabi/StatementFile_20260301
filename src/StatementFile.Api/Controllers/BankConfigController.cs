@@ -6,22 +6,18 @@ using StatementFile.Domain.Entities;
 using StatementFile.Domain.Enums;
 using StatementFile.Infrastructure.Configuration;
 
-namespace StatementFile.Presentation.Controllers
+namespace StatementFile.Api.Controllers
 {
     /// <summary>
     /// REST API for bank/product configuration records.
     ///
     /// Routes
-    ///   GET    /api/bank-config              — all rows (active+inactive)
-    ///   GET    /api/bank-config?activeOnly=true — active rows only
-    ///   GET    /api/bank-config/{id}          — single row
-    ///   POST   /api/bank-config              — create
-    ///   PUT    /api/bank-config/{id}          — update mutable fields
-    ///   DELETE /api/bank-config/{id}          — delete
-    ///
-    /// The Blazor pages consume this API through <see cref="IBankProductConfigApiClient"/>
-    /// (HttpClient-based), keeping the Presentation layer's razor components
-    /// decoupled from the Infrastructure repositories.
+    ///   GET    /api/bank-config                  — all rows (active+inactive)
+    ///   GET    /api/bank-config?activeOnly=true   — active rows only, ordered by SortOrder
+    ///   GET    /api/bank-config/{id}              — single row
+    ///   POST   /api/bank-config                  — create
+    ///   PUT    /api/bank-config/{id}              — update mutable fields
+    ///   DELETE /api/bank-config/{id}              — delete
     /// </summary>
     [ApiController]
     [Route("api/bank-config")]
