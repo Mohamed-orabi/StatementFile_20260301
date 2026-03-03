@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using Oracle.DataAccess.Client;
+using Oracle.ManagedDataAccess.Client;
 using StatementFile.Application.Interfaces;
 using StatementFile.Domain.Entities;
 using StatementFile.Domain.Interfaces.Repositories;

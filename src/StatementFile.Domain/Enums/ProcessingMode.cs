@@ -113,5 +113,41 @@ namespace StatementFile.Domain.Enums
         /// Legacy: clsStatExcel rawExcel in clsStatementAUB.
         /// </summary>
         ExcelExport = 1 << 14,
+
+        /// <summary>
+        /// Merge Mark-Up Fee transactions by docno before generation.
+        /// Legacy: clsMaintainData.mergeMarkUpFees().
+        /// </summary>
+        MergeMarkUpFees = 1 << 15,
+
+        /// <summary>
+        /// Remove markup fee rows from the detail DataSet during loading.
+        /// Uses FillStatementDataSetWithRemovingMarkupFee() variant.
+        /// </summary>
+        RemoveMarkupFee = 1 << 16,
+
+        /// <summary>
+        /// Split long address fields (>50 chars) into addr1 + addr2.
+        /// Legacy: clsMaintainData.fixAddress().
+        /// </summary>
+        FixAddress = 1 << 17,
+
+        /// <summary>
+        /// Set companycode = 1 (Arabic) or 0 (non-Arabic) based on address content.
+        /// Legacy: clsMaintainData.fixArbicAddressLang().
+        /// </summary>
+        FixArabicAddressLang = 1 << 18,
+
+        /// <summary>
+        /// Load client passport number + birth year (joins tClientPersone + tIdentity).
+        /// Legacy: clsBasStatement.getClientPasNoAndBirthYear().
+        /// </summary>
+        PasNoAndBirthYear = 1 << 19,
+
+        /// <summary>
+        /// Load client bank contact data (emaillegal, emailcont, phonelegal, phonecont).
+        /// Legacy: clsBasStatement.getTClientBank().
+        /// </summary>
+        ClientBank = 1 << 20,
     }
 }

@@ -1,6 +1,6 @@
 using System;
 using System.Data;
-using Oracle.DataAccess.Client;
+using Oracle.ManagedDataAccess.Client;
 using StatementFile.Application.Interfaces;
 using StatementFile.Domain.Interfaces.Repositories;
 
@@ -119,11 +119,21 @@ namespace StatementFile.Infrastructure.Data.Repositories
     /// <summary>
     /// Holds per-session mutable state (current table names, schema overrides).
     /// Injected as a singleton scoped to the application session.
+    ///
+    /// Schema constants preserved from clsSessionValues:
+    ///   StatementDbSchema = "A4M." → TSTATEMENTMASTERTABLE, TSTATEMENTDETAILTABLE
+    ///   GetMainSchema() from config → client/reference tables (tClientPersone, tIdentity, etc.)
     /// </summary>
     public sealed class SessionContext
     {
-        public string MainTable   { get; set; } = "TSTATEMENTMASTERTABLE";
-        public string DetailTable { get; set; } = "TSTATEMENTDETAILTABLE";
-        public string Schema      { get; set; } = string.Empty;
+        public string MainTable         { get; set; } = "TSTATEMENTMASTERTABLE";
+        public string DetailTable       { get; set; } = "TSTATEMENTDETAILTABLE";
+        /// <summary>
+        /// Schema prefix for the statement master/detail tables.
+        /// Matches clsSessionValues.mainDbSchema = "A4M."
+        /// </summary>
+        public string StatementDbSchema { get; set; } = "A4M.";
+        /// <summary>Legacy schema property — preserved for backward compatibility.</summary>
+        public string Schema            { get; set; } = string.Empty;
     }
 }

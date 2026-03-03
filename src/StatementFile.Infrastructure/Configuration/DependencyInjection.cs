@@ -18,11 +18,14 @@ namespace StatementFile.Infrastructure.Configuration
     /// <summary>
     /// Static composition root that wires the entire dependency graph.
     ///
-    /// In a full DI-container scenario (Unity, Autofac, MS.Extensions.DI) this
-    /// class would be replaced by container registrations.  For .NET Framework
-    /// Windows Forms apps without a container, calling <see cref="Compose"/>
-    /// returns a fully wired <see cref="CompositionRoot"/> that the presentation
-    /// layer uses to resolve handlers.
+    /// In a full DI-container scenario this class would be replaced by container
+    /// registrations.  For the Blazor Server presentation layer, calling
+    /// <see cref="Compose"/> returns a fully wired <see cref="CompositionRoot"/>
+    /// that the scoped Blazor services resolve from.
+    ///
+    /// Schema constants (preserved from clsSessionValues):
+    ///   SessionContext.StatementDbSchema = "A4M."  → TSTATEMENTMASTERTABLE / DETAILTABLE
+    ///   GetMainSchema() from config                → client/reference tables
     ///
     /// To add a new bank-specific formatter:
     ///   1. Implement IStatementFormatterService with a unique FormatterKey.
@@ -34,21 +37,24 @@ namespace StatementFile.Infrastructure.Configuration
         {
             // ── Singletons ─────────────────────────────────────────────────────────
             var configService  = new AppConfigurationService();
-            var sessionContext = new SessionContext();
+            var sessionContext = new SessionContext();   // StatementDbSchema defaults to "A4M."
             var connFactory    = new OracleConnectionFactory(configService);
 
             // ── Services ───────────────────────────────────────────────────────────
-            var emailService       = new EmailService(configService);
-            var ftpService         = new FtpService(configService);
-            var reportService      = new ReportService();
-            var maintenanceSvc     = new DataMaintenanceService(connFactory, configService, sessionContext);
-            var queryService       = new StatementQueryService(connFactory, configService, sessionContext);
-            var emailTracking      = new EmailTrackingService();
-            var packagingService   = new FilePackagingService();
+            var emailService      = new EmailService(configService);
+            var ftpService        = new FtpService(configService);
+            var reportService     = new ReportService();
+            var maintenanceSvc    = new DataMaintenanceService(connFactory, configService, sessionContext);
+            var queryService      = new StatementQueryService(connFactory, configService, sessionContext);
+            var emailTracking     = new EmailTrackingService();
+            var packagingService  = new FilePackagingService();
+            var summaryService    = new StatementSummaryService(connFactory);
+            var pageValidationSvc = new PageSizeValidationService();
+            var statUpdateSvc     = new StatUpdateService(connFactory, sessionContext);
 
             // ── Formatter registry (Open/Closed: add new formatters here only) ─────
-            var genericFormatter   = new GenericHtmlStatementFormatter();
-            var formatters         = new IStatementFormatterService[]
+            var genericFormatter  = new GenericHtmlStatementFormatter();
+            var formatters        = new IStatementFormatterService[]
             {
                 genericFormatter,
 
@@ -127,32 +133,35 @@ namespace StatementFile.Infrastructure.Configuration
                 // ── XML formatters ─────────────────────────────────────────────────
                 new XmlIdbeAdapter(),
             };
-            var formatterFactory   = new StatementFormatterFactory(formatters, genericFormatter);
+            var formatterFactory  = new StatementFormatterFactory(formatters, genericFormatter);
 
-            // ── Repositories & UoW factory ─────────────────────────────────────────
-            var merchantRepo       = new MerchantStatementRepository();
+            // ── Repositories ───────────────────────────────────────────────────────
+            var merchantRepo      = new MerchantStatementRepository();
 
             // ── Use Case Handlers ──────────────────────────────────────────────────
-            var merchantHandler    = new ProcessMerchantStatementHandler(
+            var merchantHandler   = new ProcessMerchantStatementHandler(
                 merchantRepo, reportService, emailService, configService);
 
-            var bulkHandler        = new RunBulkMaintenanceHandler(maintenanceSvc);
+            var bulkHandler       = new RunBulkMaintenanceHandler(maintenanceSvc);
 
             return new CompositionRoot(
-                configService:      configService,
-                sessionContext:     sessionContext,
-                connFactory:        connFactory,
-                emailService:       emailService,
-                ftpService:         ftpService,
-                reportService:      reportService,
+                configService:     configService,
+                sessionContext:    sessionContext,
+                connFactory:       connFactory,
+                emailService:      emailService,
+                ftpService:        ftpService,
+                reportService:     reportService,
                 maintenanceService: maintenanceSvc,
-                queryService:       queryService,
-                emailTracking:      emailTracking,
-                packagingService:   packagingService,
-                formatterFactory:   formatterFactory,
-                merchantRepo:       merchantRepo,
-                merchantHandler:    merchantHandler,
-                bulkHandler:        bulkHandler);
+                queryService:      queryService,
+                emailTracking:     emailTracking,
+                packagingService:  packagingService,
+                summaryService:    summaryService,
+                pageValidationSvc: pageValidationSvc,
+                statUpdateSvc:     statUpdateSvc,
+                formatterFactory:  formatterFactory,
+                merchantRepo:      merchantRepo,
+                merchantHandler:   merchantHandler,
+                bulkHandler:       bulkHandler);
         }
     }
 
@@ -161,36 +170,42 @@ namespace StatementFile.Infrastructure.Configuration
     /// </summary>
     public sealed class CompositionRoot
     {
-        public AppConfigurationService        ConfigService      { get; }
-        public SessionContext                 Session            { get; }
-        public OracleConnectionFactory        ConnFactory        { get; }
-        public IEmailService                  EmailService       { get; }
-        public IFtpService                    FtpService         { get; }
-        public IReportService                 ReportService      { get; }
-        public IDataMaintenanceService        MaintenanceService { get; }
-        public IStatementQueryService         QueryService       { get; }
-        public IEmailTrackingService          EmailTracking      { get; }
-        public IFilePackagingService          PackagingService   { get; }
-        public IStatementFormatterFactory     FormatterFactory   { get; }
-        public IMerchantStatementRepository   MerchantRepo       { get; }
-        public ProcessMerchantStatementHandler MerchantHandler   { get; }
-        public RunBulkMaintenanceHandler      BulkHandler        { get; }
+        public AppConfigurationService         ConfigService      { get; }
+        public SessionContext                  Session            { get; }
+        public OracleConnectionFactory         ConnFactory        { get; }
+        public IEmailService                   EmailService       { get; }
+        public IFtpService                     FtpService         { get; }
+        public IReportService                  ReportService      { get; }
+        public IDataMaintenanceService         MaintenanceService { get; }
+        public IStatementQueryService          QueryService       { get; }
+        public IEmailTrackingService           EmailTracking      { get; }
+        public IFilePackagingService           PackagingService   { get; }
+        public IStatementSummaryService        SummaryService     { get; }
+        public IPageSizeValidationService      PageValidation     { get; }
+        public IStatUpdateService              StatUpdate         { get; }
+        public IStatementFormatterFactory      FormatterFactory   { get; }
+        public IMerchantStatementRepository    MerchantRepo       { get; }
+        public ProcessMerchantStatementHandler MerchantHandler    { get; }
+        public RunBulkMaintenanceHandler       BulkHandler        { get; }
 
         internal CompositionRoot(
-            AppConfigurationService        configService,
-            SessionContext                 sessionContext,
-            OracleConnectionFactory        connFactory,
-            IEmailService                  emailService,
-            IFtpService                    ftpService,
-            IReportService                 reportService,
-            IDataMaintenanceService        maintenanceService,
-            IStatementQueryService         queryService,
-            IEmailTrackingService          emailTracking,
-            IFilePackagingService          packagingService,
-            IStatementFormatterFactory     formatterFactory,
-            IMerchantStatementRepository   merchantRepo,
+            AppConfigurationService         configService,
+            SessionContext                  sessionContext,
+            OracleConnectionFactory         connFactory,
+            IEmailService                   emailService,
+            IFtpService                     ftpService,
+            IReportService                  reportService,
+            IDataMaintenanceService         maintenanceService,
+            IStatementQueryService          queryService,
+            IEmailTrackingService           emailTracking,
+            IFilePackagingService           packagingService,
+            IStatementSummaryService        summaryService,
+            IPageSizeValidationService      pageValidationSvc,
+            IStatUpdateService              statUpdateSvc,
+            IStatementFormatterFactory      formatterFactory,
+            IMerchantStatementRepository    merchantRepo,
             ProcessMerchantStatementHandler merchantHandler,
-            RunBulkMaintenanceHandler      bulkHandler)
+            RunBulkMaintenanceHandler       bulkHandler)
         {
             ConfigService      = configService;
             Session            = sessionContext;
@@ -202,6 +217,9 @@ namespace StatementFile.Infrastructure.Configuration
             QueryService       = queryService;
             EmailTracking      = emailTracking;
             PackagingService   = packagingService;
+            SummaryService     = summaryService;
+            PageValidation     = pageValidationSvc;
+            StatUpdate         = statUpdateSvc;
             FormatterFactory   = formatterFactory;
             MerchantRepo       = merchantRepo;
             MerchantHandler    = merchantHandler;
@@ -229,6 +247,7 @@ namespace StatementFile.Infrastructure.Configuration
                 EmailTracking,
                 PackagingService,
                 MaintenanceService,
+                SummaryService,
                 ConfigService);
     }
 }
