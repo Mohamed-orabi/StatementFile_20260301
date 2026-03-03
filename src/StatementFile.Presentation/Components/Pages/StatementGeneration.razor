@@ -3,6 +3,8 @@
 @inject CompositionRoot Root
 @inject AppState AppState
 @inject NavigationManager Nav
+@using StatementFile.Domain.Entities
+@using StatementFile.Domain.Enums
 
 <PageTitle>Statement Generation — StatementFile</PageTitle>
 
@@ -12,18 +14,33 @@
     return;
 }
 
-<h4 class="mb-3">Statement Generation</h4>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Statement Generation</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="ReloadCatalog">
+            ↺ Reload from DB
+        </button>
+        <a href="/bank-config" class="btn btn-outline-primary btn-sm">
+            ⚙ Bank Configuration
+        </a>
+    </div>
+</div>
+
+@if (LoadError != null)
+{
+    <div class="alert alert-danger py-2">@LoadError</div>
+}
 
 <div class="row g-4">
 
-    <!-- ── Left: Product list ───────────────────────────────────────────────── -->
-    <div class="col-lg-6">
+    <!-- ── Left: Run queue ────────────────────────────────────────────────────── -->
+    <div class="col-lg-7">
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Products to Process</span>
                 <small class="text-muted">@SelectedCount selected</small>
             </div>
-            <div class="card-body p-0" style="max-height:420px;overflow-y:auto">
+            <div class="card-body p-0" style="max-height:450px;overflow-y:auto">
                 <table class="table table-sm table-hover align-middle mb-0">
                     <thead class="table-light sticky-top">
                         <tr>
@@ -33,9 +50,9 @@
                                        @onchange="ToggleAll"
                                        checked="@AllSelected" />
                             </th>
-                            <th>Bank</th>
-                            <th>Product</th>
+                            <th>Bank / Product</th>
                             <th>Formatter</th>
+                            <th>Statement Date</th>
                             <th style="width:36px"></th>
                         </tr>
                     </thead>
@@ -50,15 +67,19 @@
                                 </td>
                                 <td>
                                     <strong>@p.BankName</strong>
-                                    <br /><small class="text-muted">@p.BankFullName</small>
+                                    <small class="text-muted ms-1">@p.StatementTypeSuffix · Branch @p.BranchCode</small>
+                                    <br />
+                                    <small class="text-muted">@p.BankFullName · @p.CardProduct</small>
                                 </td>
                                 <td>
-                                    @p.CardProduct
-                                    <br /><small class="text-muted">@p.StatementTypeSuffix · Branch @p.BranchCode</small>
-                                </td>
-                                <td>
-                                    <small class="badge bg-secondary">@p.OutputType</small>
+                                    <span class="badge bg-secondary">@p.OutputType</span>
                                     <br /><small class="text-muted" style="font-size:10px">@p.FormatterKey</small>
+                                </td>
+                                <td style="min-width:130px">
+                                    <input type="date"
+                                           class="form-control form-control-sm"
+                                           value="@p.StatementDate.ToString("yyyy-MM-dd")"
+                                           @onchange="e => p.StatementDate = DateTime.Parse(e.Value.ToString())" />
                                 </td>
                                 <td>
                                     <button class="btn btn-outline-danger btn-sm"
@@ -73,7 +94,7 @@
                         {
                             <tr>
                                 <td colspan="5" class="text-center text-muted py-4">
-                                    No products added. Use the form on the right to add one.
+                                    No products in queue. Add from the catalogue on the right.
                                 </td>
                             </tr>
                         }
@@ -83,97 +104,70 @@
         </div>
     </div>
 
-    <!-- ── Right: Add-product form + actions ────────────────────────────────── -->
-    <div class="col-lg-6">
+    <!-- ── Right: Catalogue + actions ───────────────────────────────────────── -->
+    <div class="col-lg-5">
 
-        <!-- Add product form -->
+        <!-- Product catalogue (loaded from DB) -->
         <div class="card mb-3">
-            <div class="card-header">Add Product</div>
-            <div class="card-body">
-                <div class="row g-2">
-                    <div class="col-6">
-                        <label class="form-label form-label-sm">Bank Full Name</label>
-                        <input class="form-control form-control-sm"
-                               @bind="Draft.BankFullName"
-                               placeholder="e.g. United Bank for Africa" />
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label form-label-sm">Bank Code</label>
-                        <input class="form-control form-control-sm"
-                               @bind="Draft.BankName"
-                               placeholder="e.g. UBA" />
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label form-label-sm">Branch Code</label>
-                        <input type="number" class="form-control form-control-sm"
-                               @bind="Draft.BranchCode" />
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label form-label-sm">Card Product</label>
-                        <input class="form-control form-control-sm"
-                               @bind="Draft.CardProduct"
-                               placeholder="e.g. UBACR" />
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label form-label-sm">Type Suffix</label>
-                        <input class="form-control form-control-sm"
-                               @bind="Draft.StatementTypeSuffix"
-                               placeholder="CR / DB / CP" />
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label form-label-sm">Formatter Key</label>
-                        <input class="form-control form-control-sm"
-                               @bind="Draft.FormatterKey"
-                               placeholder="e.g. HTML_UBA" />
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label form-label-sm">Output Type</label>
-                        <InputSelect class="form-select form-select-sm"
-                                     @bind-Value="Draft.OutputType">
-                            @foreach (var v in Enum.GetValues<StatementOutputType>())
-                            {
-                                <option value="@v">@v</option>
-                            }
-                        </InputSelect>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label form-label-sm">Statement Date</label>
-                        <input type="date" class="form-control form-control-sm"
-                               @bind="Draft.StatementDate"
-                               @bind:format="yyyy-MM-dd" />
-                    </div>
-                    <div class="col-6 d-flex align-items-end">
-                        <button class="btn btn-sm btn-primary w-100"
-                                @onclick="AddProduct"
-                                disabled="@string.IsNullOrWhiteSpace(Draft.FormatterKey)">
-                            Add to List
-                        </button>
-                    </div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Available Products</span>
+                <small class="text-muted">@Catalog.Count entries</small>
+            </div>
+            <div class="card-body p-2">
+                <!-- Search filter -->
+                <input class="form-control form-control-sm mb-2"
+                       placeholder="Filter by bank, formatter, branch…"
+                       @bind="SearchText"
+                       @bind:event="oninput" />
+
+                <!-- Default statement date applied when adding -->
+                <div class="input-group input-group-sm mb-2">
+                    <span class="input-group-text">Default Date</span>
+                    <input type="date"
+                           class="form-control"
+                           @bind="DefaultStatementDate"
+                           @bind:format="yyyy-MM-dd" />
                 </div>
 
-                <!-- Processing mode flags -->
-                <hr class="my-2" />
-                <small class="text-muted d-block mb-1">Processing Modes</small>
-                <div class="d-flex flex-wrap gap-2">
-                    @foreach (var mode in AvailableModes)
-                    {
-                        <div class="form-check form-check-inline mb-0">
-                            <input class="form-check-input" type="checkbox"
-                                   id="mode_@mode"
-                                   checked="@Draft.Modes.HasFlag(mode)"
-                                   @onchange="e => ToggleMode(mode, (bool)e.Value)" />
-                            <label class="form-check-label" for="mode_@mode">
-                                <small>@mode</small>
-                            </label>
-                        </div>
-                    }
+                <!-- Filtered product list -->
+                <div style="max-height:280px;overflow-y:auto">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <tbody>
+                            @foreach (var cfg in FilteredCatalog)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@cfg.BankName</strong>
+                                        <small class="text-muted ms-1">@cfg.StatementTypeSuffix</small>
+                                        <br />
+                                        <small class="text-muted" style="font-size:10px">@cfg.FormatterKey · Branch @cfg.BranchCode</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-outline-primary btn-sm py-0 px-2"
+                                                @onclick="() => AddFromCatalog(cfg)"
+                                                title="Add to queue">
+                                            +
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!FilteredCatalog.Any())
+                            {
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-3">
+                                        @(Catalog.Count == 0 ? "No products found in database." : "No matches.")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- Action buttons -->
+        <!-- Generation controls -->
         <div class="d-flex gap-2 mb-3">
-            <button class="btn btn-success"
+            <button class="btn btn-success flex-fill"
                     @onclick="RunGeneration"
                     disabled="@(IsRunning || SelectedCount == 0)">
                 @(IsRunning ? "Running…" : $"Generate ({SelectedCount})")
@@ -185,7 +179,7 @@
             </button>
         </div>
 
-        <!-- Progress -->
+        <!-- Progress + log -->
         @if (IsRunning || StatusLog.Count > 0)
         {
             <div class="progress mb-2" style="height:18px">
@@ -195,7 +189,7 @@
                 </div>
             </div>
             <div class="border rounded p-2 bg-light"
-                 style="max-height:220px;overflow-y:auto;font-size:12px;font-family:monospace"
+                 style="max-height:200px;overflow-y:auto;font-size:12px;font-family:monospace"
                  id="statusLog">
                 @foreach (var entry in StatusLog)
                 {
@@ -210,34 +204,76 @@
 </div>
 
 @code {
-    // ── Product list ───────────────────────────────────────────────────────────
-    private List<ProductEntry>  Products { get; } = new();
-    private ProductEntry        Draft    { get; } = new() { StatementDate = DateTime.Today };
+    // ── Catalogue (loaded from DB) ─────────────────────────────────────────────
+    private List<BankProductConfig> Catalog { get; } = new();
+    private string                  SearchText           { get; set; } = string.Empty;
+    private DateTime                DefaultStatementDate { get; set; } = DateTime.Today;
+    private string                  LoadError            { get; set; }
+
+    private IEnumerable<BankProductConfig> FilteredCatalog =>
+        string.IsNullOrWhiteSpace(SearchText)
+            ? Catalog
+            : Catalog.Where(c =>
+                c.BankName.Contains(SearchText, StringComparison.OrdinalIgnoreCase)     ||
+                c.BankFullName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                c.FormatterKey.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                c.BranchCode.ToString().Contains(SearchText)                            ||
+                c.StatementTypeSuffix.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+
+    protected override void OnInitialized() => LoadCatalog();
+
+    private void LoadCatalog()
+    {
+        Catalog.Clear();
+        LoadError = null;
+        try
+        {
+            var active = Root.BankProductCfgRepo.GetActive();
+            Catalog.AddRange(active);
+        }
+        catch (Exception ex)
+        {
+            LoadError = $"Could not load bank configurations from database: {ex.Message}";
+        }
+    }
+
+    private void ReloadCatalog()
+    {
+        LoadCatalog();
+        StateHasChanged();
+    }
+
+    // ── Run queue ─────────────────────────────────────────────────────────────
+    private List<ProductEntry> Products { get; } = new();
 
     private int  SelectedCount => Products.Count(p => p.Selected);
     private bool AllSelected   => Products.Count > 0 && Products.All(p => p.Selected);
 
-    private static readonly ProcessingMode[] AvailableModes = Enum
-        .GetValues<ProcessingMode>()
-        .Where(m => m != ProcessingMode.Standard)
-        .ToArray();
-
-    private void AddProduct()
+    private void AddFromCatalog(BankProductConfig cfg)
     {
+        // Allow adding the same bank with different dates — check for exact duplicate
+        bool alreadyQueued = Products.Any(p =>
+            p.BranchCode    == cfg.BranchCode   &&
+            p.FormatterKey  == cfg.FormatterKey  &&
+            p.CardProduct   == cfg.CardProduct   &&
+            p.StatementDate == DefaultStatementDate);
+
+        if (alreadyQueued) return;
+
         Products.Add(new ProductEntry
         {
-            Selected            = true,
-            BankName            = Draft.BankName,
-            BankFullName        = Draft.BankFullName,
-            BranchCode          = Draft.BranchCode,
-            CardProduct         = Draft.CardProduct,
-            OutputType          = Draft.OutputType,
-            FormatterKey        = Draft.FormatterKey,
-            StatementTypeSuffix = Draft.StatementTypeSuffix,
-            Modes               = Draft.Modes,
-            StatementDate       = Draft.StatementDate,
-            EmailFromAddress    = Draft.EmailFromAddress,
-            RewardContractCondition = Draft.RewardContractCondition,
+            Selected                = true,
+            BankName                = cfg.BankName,
+            BankFullName            = cfg.BankFullName,
+            BranchCode              = cfg.BranchCode,
+            CardProduct             = cfg.CardProduct,
+            OutputType              = cfg.OutputType,
+            FormatterKey            = cfg.FormatterKey,
+            StatementTypeSuffix     = cfg.StatementTypeSuffix,
+            Modes                   = cfg.ProcessingModes,
+            StatementDate           = DefaultStatementDate,
+            EmailFromAddress        = cfg.EmailFromAddress,
+            RewardContractCondition = cfg.RewardContractCondition,
         });
     }
 
@@ -245,13 +281,6 @@
     {
         bool check = (bool)e.Value;
         foreach (var p in Products) p.Selected = check;
-    }
-
-    private void ToggleMode(ProcessingMode mode, bool on)
-    {
-        Draft.Modes = on
-            ? Draft.Modes | mode
-            : Draft.Modes & ~mode;
     }
 
     // ── Generation ─────────────────────────────────────────────────────────────
@@ -284,11 +313,11 @@
                 {
                     // Step 1: Bulk maintenance
                     var bulkCmd = new RunBulkMaintenanceCommand(
-                        branchCode:        product.BranchCode,
-                        runCardBranchMatch: true,
+                        branchCode:          product.BranchCode,
+                        runCardBranchMatch:  true,
                         runArabicAddressFix: product.Modes.HasFlag(ProcessingMode.FixArabicAddress),
-                        runOnHoldDelete:    product.Modes.HasFlag(ProcessingMode.DeleteOnHold),
-                        runRewardFix:       product.Modes.HasFlag(ProcessingMode.Reward));
+                        runOnHoldDelete:     product.Modes.HasFlag(ProcessingMode.DeleteOnHold),
+                        runRewardFix:        product.Modes.HasFlag(ProcessingMode.Reward));
 
                     var bulkResult = Root.BulkHandler.Handle(bulkCmd);
                     if (bulkResult.IsFailure)

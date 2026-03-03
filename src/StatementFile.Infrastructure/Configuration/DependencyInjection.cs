@@ -142,7 +142,8 @@ namespace StatementFile.Infrastructure.Configuration
             var formatterFactory = new StatementFormatterFactory(formatters, genericFormatter);
 
             // ── Repositories ───────────────────────────────────────────────────────
-            var merchantRepo = new MerchantStatementRepository();
+            var merchantRepo       = new MerchantStatementRepository();
+            var bankProductCfgRepo = new BankProductConfigRepository(connFactory);
 
             // ── Use Case Handlers ──────────────────────────────────────────────────
             var merchantHandler = new ProcessMerchantStatementHandler(
@@ -166,6 +167,7 @@ namespace StatementFile.Infrastructure.Configuration
                 statUpdateSvc:      statUpdateSvc,
                 formatterFactory:   formatterFactory,
                 merchantRepo:       merchantRepo,
+                bankProductCfgRepo: bankProductCfgRepo,
                 merchantHandler:    merchantHandler,
                 bulkHandler:        bulkHandler);
         }
@@ -191,6 +193,7 @@ namespace StatementFile.Infrastructure.Configuration
         public IStatUpdateService              StatUpdate         { get; }
         public IStatementFormatterFactory      FormatterFactory   { get; }
         public IMerchantStatementRepository    MerchantRepo       { get; }
+        public IBankProductConfigRepository    BankProductCfgRepo { get; }
         public ProcessMerchantStatementHandler MerchantHandler    { get; }
         public RunBulkMaintenanceHandler       BulkHandler        { get; }
 
@@ -210,6 +213,7 @@ namespace StatementFile.Infrastructure.Configuration
             IStatUpdateService              statUpdateSvc,
             IStatementFormatterFactory      formatterFactory,
             IMerchantStatementRepository    merchantRepo,
+            IBankProductConfigRepository    bankProductCfgRepo,
             ProcessMerchantStatementHandler merchantHandler,
             RunBulkMaintenanceHandler       bulkHandler)
         {
@@ -228,6 +232,7 @@ namespace StatementFile.Infrastructure.Configuration
             StatUpdate         = statUpdateSvc;
             FormatterFactory   = formatterFactory;
             MerchantRepo       = merchantRepo;
+            BankProductCfgRepo = bankProductCfgRepo;
             MerchantHandler    = merchantHandler;
             BulkHandler        = bulkHandler;
         }
