@@ -1,10 +1,9 @@
 @page "/"
 @rendermode InteractiveServer
 @inject CompositionRoot Root
+@inject IBankProductConfigApiClient BankConfigApi
 @inject AppState AppState
 @inject NavigationManager Nav
-@using StatementFile.Domain.Entities
-@using StatementFile.Domain.Enums
 
 <PageTitle>Statement Generation — StatementFile</PageTitle>
 
@@ -107,20 +106,18 @@
     <!-- ── Right: Catalogue + actions ───────────────────────────────────────── -->
     <div class="col-lg-5">
 
-        <!-- Product catalogue (loaded from DB) -->
+        <!-- Product catalogue (loaded from DB via API) -->
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Available Products</span>
                 <small class="text-muted">@Catalog.Count entries</small>
             </div>
             <div class="card-body p-2">
-                <!-- Search filter -->
                 <input class="form-control form-control-sm mb-2"
                        placeholder="Filter by bank, formatter, branch…"
                        @bind="SearchText"
                        @bind:event="oninput" />
 
-                <!-- Default statement date applied when adding -->
                 <div class="input-group input-group-sm mb-2">
                     <span class="input-group-text">Default Date</span>
                     <input type="date"
@@ -129,7 +126,6 @@
                            @bind:format="yyyy-MM-dd" />
                 </div>
 
-                <!-- Filtered product list -->
                 <div style="max-height:280px;overflow-y:auto">
                     <table class="table table-sm table-hover align-middle mb-0">
                         <tbody>
@@ -140,7 +136,9 @@
                                         <strong>@cfg.BankName</strong>
                                         <small class="text-muted ms-1">@cfg.StatementTypeSuffix</small>
                                         <br />
-                                        <small class="text-muted" style="font-size:10px">@cfg.FormatterKey · Branch @cfg.BranchCode</small>
+                                        <small class="text-muted" style="font-size:10px">
+                                            @cfg.FormatterKey · Branch @cfg.BranchCode
+                                        </small>
                                     </td>
                                     <td class="text-end">
                                         <button class="btn btn-outline-primary btn-sm py-0 px-2"
@@ -179,7 +177,6 @@
             </button>
         </div>
 
-        <!-- Progress + log -->
         @if (IsRunning || StatusLog.Count > 0)
         {
             <div class="progress mb-2" style="height:18px">
@@ -189,8 +186,7 @@
                 </div>
             </div>
             <div class="border rounded p-2 bg-light"
-                 style="max-height:200px;overflow-y:auto;font-size:12px;font-family:monospace"
-                 id="statusLog">
+                 style="max-height:200px;overflow-y:auto;font-size:12px;font-family:monospace">
                 @foreach (var entry in StatusLog)
                 {
                     <div class="@(entry.IsError ? "text-danger" : "")">
@@ -204,13 +200,13 @@
 </div>
 
 @code {
-    // ── Catalogue (loaded from DB) ─────────────────────────────────────────────
-    private List<BankProductConfig> Catalog { get; } = new();
-    private string                  SearchText           { get; set; } = string.Empty;
-    private DateTime                DefaultStatementDate { get; set; } = DateTime.Today;
-    private string                  LoadError            { get; set; }
+    // ── Catalogue (loaded via API) ─────────────────────────────────────────────
+    private List<BankProductConfigDto> Catalog              { get; } = new();
+    private string                     SearchText           { get; set; } = string.Empty;
+    private DateTime                   DefaultStatementDate { get; set; } = DateTime.Today;
+    private string                     LoadError            { get; set; }
 
-    private IEnumerable<BankProductConfig> FilteredCatalog =>
+    private IEnumerable<BankProductConfigDto> FilteredCatalog =>
         string.IsNullOrWhiteSpace(SearchText)
             ? Catalog
             : Catalog.Where(c =>
@@ -220,26 +216,26 @@
                 c.BranchCode.ToString().Contains(SearchText)                            ||
                 c.StatementTypeSuffix.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
 
-    protected override void OnInitialized() => LoadCatalog();
+    protected override async Task OnInitializedAsync() => await LoadCatalogAsync();
 
-    private void LoadCatalog()
+    private async Task LoadCatalogAsync()
     {
         Catalog.Clear();
         LoadError = null;
         try
         {
-            var active = Root.BankProductCfgRepo.GetActive();
+            var active = await BankConfigApi.GetActiveAsync();
             Catalog.AddRange(active);
         }
         catch (Exception ex)
         {
-            LoadError = $"Could not load bank configurations from database: {ex.Message}";
+            LoadError = $"Could not load bank configurations: {ex.Message}";
         }
     }
 
-    private void ReloadCatalog()
+    private async Task ReloadCatalog()
     {
-        LoadCatalog();
+        await LoadCatalogAsync();
         StateHasChanged();
     }
 
@@ -249,9 +245,8 @@
     private int  SelectedCount => Products.Count(p => p.Selected);
     private bool AllSelected   => Products.Count > 0 && Products.All(p => p.Selected);
 
-    private void AddFromCatalog(BankProductConfig cfg)
+    private void AddFromCatalog(BankProductConfigDto cfg)
     {
-        // Allow adding the same bank with different dates — check for exact duplicate
         bool alreadyQueued = Products.Any(p =>
             p.BranchCode    == cfg.BranchCode   &&
             p.FormatterKey  == cfg.FormatterKey  &&
@@ -267,10 +262,10 @@
             BankFullName            = cfg.BankFullName,
             BranchCode              = cfg.BranchCode,
             CardProduct             = cfg.CardProduct,
-            OutputType              = cfg.OutputType,
+            OutputType              = (StatementOutputType)cfg.OutputType,
             FormatterKey            = cfg.FormatterKey,
             StatementTypeSuffix     = cfg.StatementTypeSuffix,
-            Modes                   = cfg.ProcessingModes,
+            Modes                   = (ProcessingMode)cfg.ProcessingModes,
             StatementDate           = DefaultStatementDate,
             EmailFromAddress        = cfg.EmailFromAddress,
             RewardContractCondition = cfg.RewardContractCondition,
@@ -311,7 +306,6 @@
 
                 await Task.Run(() =>
                 {
-                    // Step 1: Bulk maintenance
                     var bulkCmd = new RunBulkMaintenanceCommand(
                         branchCode:          product.BranchCode,
                         runCardBranchMatch:  true,
@@ -323,7 +317,6 @@
                     if (bulkResult.IsFailure)
                         LogError($"  Maintenance warning: {bulkResult.Error}");
 
-                    // Step 2: Statement generation
                     var genCmd    = product.BuildCommand(rootPath);
                     var handler   = Root.CreateStatementHandler();
                     var genResult = handler.Handle(genCmd);
