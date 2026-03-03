@@ -8,8 +8,11 @@ namespace StatementFile.Domain.Interfaces.Services
     ///   CleanNullCards()            → DELETE rows where cardno IS NULL
     ///   MatchCardBranchForAccount() → UPDATE cardbranchpart / cardbranchpartname
     ///   FixArabicAddress()          → UPDATE address fields with "???" prefix
-    ///   DeleteOnHoldTransactions()  → DELETE rows where HOLSTMT = 'Y'
+    ///   DeleteOnHoldTransactions()  → DELETE rows WHERE POSTINGDATE IS NULL AND DOCNO IS NULL
     ///   FixReward()                 → UPDATE reward-programme fields before generation
+    ///   FixAddress()                → Split long addresses (>50 chars) into addr1 + addr2
+    ///   FixArabicAddressLang()      → Set companycode=1 (Arabic) or companycode=0 (non-Arabic)
+    ///   MergeMarkUpFees()           → Consolidate Mark-Up Fee transactions per docno
     /// </summary>
     public interface IDataMaintenanceService
     {
@@ -32,18 +35,19 @@ namespace StatementFile.Domain.Interfaces.Services
 
         /// <summary>
         /// Finds address fields that start with "???" (corrupted Arabic encoding) and
-        /// strips the prefix. Applied to customeraddress1/2/3.
+        /// strips the prefix. Applied to all 9 address fields
+        /// (customeraddress1/2/3, accountaddress1/2/3, cardaddress1/2/3).
         /// Returns the number of records updated.
         /// </summary>
         int FixArabicAddress(int branchCode);
 
         /// <summary>
-        /// Deletes detail-table rows that are marked on-hold (HOLSTMT = 'Y').
-        /// Required by: AUB (Branch 25), any bank that sets the HOLSTMT flag.
-        /// Legacy: clsMaintainData.deleteOnHoldTrans().
+        /// Deletes detail-table rows where POSTINGDATE IS NULL AND DOCNO IS NULL.
+        /// When isReward is true, also excludes rows where trandescription = 'Calculated Points'.
+        /// Legacy: clsMaintainData.deleteOnHoldTrans(int pBranch, bool isReward).
         /// Returns the number of rows deleted.
         /// </summary>
-        int DeleteOnHoldTransactions(int branchCode);
+        int DeleteOnHoldTransactions(int branchCode, bool isReward = false);
 
         /// <summary>
         /// Runs the reward-programme consistency fix before generating reward statements.
@@ -52,5 +56,30 @@ namespace StatementFile.Domain.Interfaces.Services
         /// Returns the number of records updated.
         /// </summary>
         int FixReward(int branchCode, string rewardContractCondition);
+
+        /// <summary>
+        /// For each record where customeraddress1 exceeds 50 characters and
+        /// customeraddress2 is NULL, splits the address at a word boundary into
+        /// customeraddress1/2, accountaddress1/2, and cardaddress1/2.
+        /// Legacy: clsMaintainData.fixAddress(int pBankCode).
+        /// Returns the number of records updated.
+        /// </summary>
+        int FixAddress(int branchCode);
+
+        /// <summary>
+        /// Sets companycode = 1 (Arabic) or companycode = 0 (non-Arabic) for each
+        /// record, based on whether the customer address contains Arabic characters.
+        /// Also strips the "???" corruption prefix where present.
+        /// Legacy: clsMaintainData.fixArbicAddressLang(int pBankCode).
+        /// Returns the number of records updated.
+        /// </summary>
+        int FixArabicAddressLang(int branchCode);
+
+        /// <summary>
+        /// Groups Mark-Up Fee transactions in the detail table by docno, accumulates
+        /// the total billtranamount onto the first row, and deletes duplicate rows.
+        /// Legacy: clsMaintainData.mergeMarkUpFees(int pBranch).
+        /// </summary>
+        void MergeMarkUpFees(int branchCode);
     }
 }

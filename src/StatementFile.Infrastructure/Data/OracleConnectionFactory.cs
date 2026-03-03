@@ -1,5 +1,5 @@
 using System;
-using Oracle.DataAccess.Client;
+using Oracle.ManagedDataAccess.Client;
 using StatementFile.Application.Interfaces;
 
 namespace StatementFile.Infrastructure.Data

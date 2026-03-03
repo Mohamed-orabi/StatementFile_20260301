@@ -4,109 +4,96 @@ namespace StatementFile.Application.UseCases.BulkProcessing
     /// Instructs the bulk maintenance use case to run the pre-generation data
     /// fixes for one bank branch.
     ///
-    /// All operations are optional flags; the caller (frmGenerateStatement)
-    /// sets them based on the product configuration for the branch.
+    /// All operations are optional flags; the caller sets them based on the
+    /// product configuration for the branch.
     ///
     /// Operation mapping to legacy clsMaintainData methods:
-    ///   RunNullCardDelete      → CleanNullCards()
-    ///   ExcludeReward          → excludes contracttype = RewardContractCondition
-    ///   ExcludeInstallment     → excludes contracttype IN InstallmentCondition
-    ///   RunCardBranchMatch     → MatchCardBranchForAccount()
-    ///   RunArabicAddressFix    → FixArabicAddress()
-    ///   RunOnHoldDelete        → DeleteOnHoldTransactions()
-    ///   RunRewardFix           → FixReward()  [resets reward flags before generation]
+    ///   RunNullCardDelete       → CleanNullCards()
+    ///   ExcludeReward           → excludes contracttype = RewardContractCondition
+    ///   ExcludeInstallment      → excludes contracttype IN InstallmentCondition
+    ///   RunCardBranchMatch      → MatchCardBranchForAccount()
+    ///   RunArabicAddressFix     → FixArabicAddress()          [strips "???" prefix]
+    ///   RunFixAddress           → FixAddress()                [split >50-char addresses]
+    ///   RunFixArabicAddressLang → FixArabicAddressLang()      [set companycode=1/0]
+    ///   RunOnHoldDelete         → DeleteOnHoldTransactions()  [POSTINGDATE IS NULL AND DOCNO IS NULL]
+    ///   IsRewardRun             → passed as isReward=true to DeleteOnHoldTransactions
+    ///   RunMergeMarkUpFees      → MergeMarkUpFees()           [consolidate Mark-Up Fee rows]
+    ///   RunRewardFix            → FixReward()
     /// </summary>
     public sealed class RunBulkMaintenanceCommand
     {
         public int BranchCode { get; }
 
         // ── NULL-card cleanup ─────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Execute the NULL-card row delete pass.
-        /// Should be true for all credit/debit/prepaid statement runs.
-        /// Skipped only when the branch has no card-number requirement.
-        /// </summary>
-        public bool RunNullCardDelete { get; }
-
-        /// <summary>
-        /// Exclude rows whose contracttype matches the reward condition from the delete.
-        /// Set to true when the batch also includes reward-programme statements.
-        /// Legacy: notRwardVal = false in clsMaintainData.
-        /// </summary>
-        public bool ExcludeReward { get; }
-
-        /// <summary>
-        /// Oracle NOT IN condition for installment contract types.
-        /// e.g. "('Purchase Installment With Interest Rate','BuyNow Installment')"
-        /// Used only when ExcludeInstallment is true.
-        /// </summary>
-        public string InstallmentCondition { get; }
-
-        /// <summary>
-        /// Exclude rows whose contracttype is in InstallmentCondition from the delete.
-        /// Set to true for branches that process instalment statements.
-        /// </summary>
-        public bool ExcludeInstallment { get; }
-
-        /// <summary>
-        /// Oracle = condition value for the reward contract type filter,
-        /// e.g. "'Reward Program (Airmile)'" or "'New Reward Contract'".
-        /// </summary>
+        public bool   RunNullCardDelete       { get; }
+        public bool   ExcludeReward           { get; }
+        public bool   ExcludeInstallment      { get; }
+        public string InstallmentCondition    { get; }
         public string RewardContractCondition { get; }
 
         // ── Card-branch alignment ─────────────────────────────────────────────────
-
-        /// <summary>
-        /// Run the card-branch-part alignment pass.
-        /// Aligns cardbranchpart / cardbranchpartname across all cards for each client
-        /// to the most recently created card's branch.
-        /// Should be true for most production runs.
-        /// Legacy: clsMaintainData.matchCardBranch4Account().
-        /// </summary>
         public bool RunCardBranchMatch { get; }
 
-        // ── Arabic address fix ────────────────────────────────────────────────────
-
+        // ── Arabic address corruption fix ─────────────────────────────────────────
         /// <summary>
-        /// Run the Arabic address corruption fix.
-        /// Detects "???" prefix on address fields and strips it.
-        /// Required for: Egyptian banks (AAIB, CMB, ALXB, QNB, BDCA, AIBK, AUB).
-        /// Legacy: clsMaintainData.fixArbicAddress().
+        /// Strips "???" prefix from all 9 address fields.
+        /// Legacy: clsMaintainData.fixArbicAddress()
         /// </summary>
         public bool RunArabicAddressFix { get; }
 
-        // ── On-hold transaction delete ────────────────────────────────────────────
-
+        // ── Long address split ────────────────────────────────────────────────────
         /// <summary>
-        /// Delete detail rows where HOLSTMT = 'Y' before generation.
-        /// Required for: AUB (Branch 25), any bank that sets HOLSTMT flags.
-        /// Legacy: clsMaintainData.deleteOnHoldTrans().
+        /// Splits customeraddress1 longer than 50 chars at a word boundary.
+        /// Applied to customer, account, and card address fields.
+        /// Legacy: clsMaintainData.fixAddress()
+        /// </summary>
+        public bool RunFixAddress { get; }
+
+        // ── Arabic language detection ─────────────────────────────────────────────
+        /// <summary>
+        /// Sets companycode = 1 (Arabic) or 0 (non-Arabic) for each statement row.
+        /// Legacy: clsMaintainData.fixArbicAddressLang()
+        /// </summary>
+        public bool RunFixArabicAddressLang { get; }
+
+        // ── On-hold transaction delete ────────────────────────────────────────────
+        /// <summary>
+        /// Deletes detail rows WHERE POSTINGDATE IS NULL AND DOCNO IS NULL.
+        /// Legacy: clsMaintainData.deleteOnHoldTrans(int pBranch, bool isReward)
         /// </summary>
         public bool RunOnHoldDelete { get; }
 
-        // ── Reward programme fix ──────────────────────────────────────────────────
-
         /// <summary>
-        /// Run the reward-programme pre-fix before generating reward statements.
-        /// Ensures the reward programme fields are consistent before the formatter
-        /// reads them.
-        /// Only applies when the run includes reward-programme products.
-        /// Legacy: clsMaintainData.fixReward().
+        /// When true, also excludes 'Calculated Points' rows from the on-hold delete.
+        /// Passed as isReward=true to DeleteOnHoldTransactions().
         /// </summary>
+        public bool IsRewardRun { get; }
+
+        // ── Mark-Up Fee merge ─────────────────────────────────────────────────────
+        /// <summary>
+        /// Consolidates Mark-Up Fee transactions in the detail table by docno.
+        /// Legacy: clsMaintainData.mergeMarkUpFees()
+        /// </summary>
+        public bool RunMergeMarkUpFees { get; }
+
+        // ── Reward programme fix ──────────────────────────────────────────────────
         public bool RunRewardFix { get; }
 
         public RunBulkMaintenanceCommand(
             int    branchCode,
-            bool   runNullCardDelete      = true,
-            bool   excludeReward          = true,
-            bool   excludeInstallment     = false,
-            string installmentCondition   = null,
+            bool   runNullCardDelete       = true,
+            bool   excludeReward           = true,
+            bool   excludeInstallment      = false,
+            string installmentCondition    = null,
             string rewardContractCondition = "'Reward Program (Airmile)'",
-            bool   runCardBranchMatch     = true,
-            bool   runArabicAddressFix    = false,
-            bool   runOnHoldDelete        = false,
-            bool   runRewardFix           = false)
+            bool   runCardBranchMatch      = true,
+            bool   runArabicAddressFix     = false,
+            bool   runFixAddress           = false,
+            bool   runFixArabicAddressLang = false,
+            bool   runOnHoldDelete         = false,
+            bool   isRewardRun             = false,
+            bool   runMergeMarkUpFees      = false,
+            bool   runRewardFix            = false)
         {
             BranchCode              = branchCode;
             RunNullCardDelete       = runNullCardDelete;
@@ -116,7 +103,11 @@ namespace StatementFile.Application.UseCases.BulkProcessing
             RewardContractCondition = rewardContractCondition;
             RunCardBranchMatch      = runCardBranchMatch;
             RunArabicAddressFix     = runArabicAddressFix;
+            RunFixAddress           = runFixAddress;
+            RunFixArabicAddressLang = runFixArabicAddressLang;
             RunOnHoldDelete         = runOnHoldDelete;
+            IsRewardRun             = isRewardRun;
+            RunMergeMarkUpFees      = runMergeMarkUpFees;
             RunRewardFix            = runRewardFix;
         }
     }
