@@ -11,6 +11,7 @@ using StatementFile.Infrastructure.Formatters;
 using StatementFile.Infrastructure.Formatters.Html;
 using StatementFile.Infrastructure.Formatters.RawData;
 using StatementFile.Infrastructure.Formatters.TextLabel;
+using StatementFile.Infrastructure.Formatters.Xml;
 using StatementFile.Infrastructure.Services;
 
 namespace StatementFile.Infrastructure.Configuration
@@ -18,17 +19,19 @@ namespace StatementFile.Infrastructure.Configuration
     /// <summary>
     /// Static composition root that wires the entire dependency graph.
     ///
-    /// In a full DI-container scenario this class would be replaced by container
-    /// registrations.  For the Blazor Server presentation layer, calling
-    /// <see cref="Compose"/> returns a fully wired <see cref="CompositionRoot"/>
-    /// that the scoped Blazor services resolve from.
+    /// All formatters are native implementations — no legacy clsStatHtml*,
+    /// clsStatRawData*, clsStatTxtLbl* classes are referenced anywhere in this
+    /// project. Each formatter extends the appropriate native base class and
+    /// implements IStatementFormatterService directly.
     ///
     /// Schema constants (preserved from clsSessionValues):
     ///   SessionContext.StatementDbSchema = "A4M."  → TSTATEMENTMASTERTABLE / DETAILTABLE
     ///   GetMainSchema() from config                → client/reference tables
     ///
     /// To add a new bank-specific formatter:
-    ///   1. Implement IStatementFormatterService with a unique FormatterKey.
+    ///   1. Create a class that extends the appropriate native base
+    ///      (NativeHtmlFormatterBase / NativeRawDataFormatterBase /
+    ///       NativeTextLabelFormatterBase) with a unique FormatterKey.
     ///   2. Register it in the formatters array below — no other code changes needed.
     /// </summary>
     public static class DependencyInjection
@@ -52,116 +55,119 @@ namespace StatementFile.Infrastructure.Configuration
             var pageValidationSvc = new PageSizeValidationService();
             var statUpdateSvc     = new StatUpdateService(connFactory, sessionContext);
 
-            // ── Formatter registry (Open/Closed: add new formatters here only) ─────
-            var genericFormatter  = new GenericHtmlStatementFormatter();
-            var formatters        = new IStatementFormatterService[]
+            // ── Formatter registry ────────────────────────────────────────────────
+            // All formatters are native — no legacy class calls anywhere.
+            // Open/Closed: to add a new bank, add one entry here only.
+            var genericFormatter = new GenericHtmlStatementFormatter();
+            var formatters       = new IStatementFormatterService[]
             {
                 genericFormatter,
 
-                // ── HTML formatters ────────────────────────────────────────────────
-                new HtmlUbaAdapter(),
-                new HtmlAbpAdapter(),
-                new HtmlAbpSupAdapter(),
-                new HtmlAibkAdapter(),
-                new HtmlAibkValuAdapter(),
-                new HtmlAlxbAdapter(),
-                new HtmlAlxbCpAdapter(),
-                new HtmlBaiCreditAdapter(),
-                new HtmlBaiPrepaidAdapter(),
-                new HtmlBdcaAdapter(),
-                new HtmlBpcAdapter(),
-                new HtmlBpcPrepaidAdapter(),
-                new HtmlCmbAdapter(),
-                new HtmlDbnAdapter(),
-                new HtmlFbpgAdapter(),
-                new HtmlGtbkAdapter(),
-                new HtmlGtbkDebitAdapter(),
-                new HtmlGtbnAdapter(),
-                new HtmlGtbuPrepaidAdapter(),
-                new HtmlFbnAdapter(),
-                new HtmlFbnCorpAdapter(),
-                new HtmlFbnDebitAdapter(),
-                new HtmlFbnSupAdapter(),
-                new HtmlHblnAdapter(),
-                new HtmlHblnPrepaidAdapter(),
-                new HtmlIcbgAdapter(),
-                new HtmlImbPrepaidAdapter(),
-                new HtmlNbsAdapter(),
-                new HtmlRbghAdapter(),
-                new HtmlSbnAdapter(),
-                new HtmlSbnNewAdapter(),
-                new HtmlSbnSignatureAdapter(),
-                new HtmlSbpAdapter(),
-                new HtmlSbpDebitAdapter(),
-                new HtmlSbpPrepaidAdapter(),
-                new HtmlSibnAdapter(),
-                new HtmlUbaGPrepaidAdapter(),
-                new HtmlUnbnAdapter(),
-                new HtmlWemaAdapter(),
-                new HtmlWemaDebitAdapter(),
-                new HtmlAaibAdapter(),
-                new HtmlGnrImbPrepaidAdapter(),
+                // ── Native HTML formatters ─────────────────────────────────────────
+                new HtmlUbaFormatter(),
+                new HtmlAbpFormatter(),
+                new HtmlAbpSupFormatter(),
+                new HtmlAibkFormatter(),
+                new HtmlAibkValuFormatter(),
+                new HtmlAlxbFormatter(),
+                new HtmlAlxbCpFormatter(),
+                new HtmlBaiCreditFormatter(),
+                new HtmlBaiPrepaidFormatter(),
+                new HtmlBdcaFormatter(),
+                new HtmlBpcFormatter(),
+                new HtmlBpcPrepaidFormatter(),
+                new HtmlCmbFormatter(),
+                new HtmlDbnFormatter(),
+                new HtmlFbpgFormatter(),
+                new HtmlGtbkFormatter(),
+                new HtmlGtbkDebitFormatter(),
+                new HtmlGtbnFormatter(),
+                new HtmlGtbuPrepaidFormatter(),
+                new HtmlFbnFormatter(),
+                new HtmlFbnCorpFormatter(),
+                new HtmlFbnDebitFormatter(),
+                new HtmlFbnSupFormatter(),
+                new HtmlHblnFormatter(),
+                new HtmlHblnPrepaidFormatter(),
+                new HtmlIcbgFormatter(),
+                new HtmlImbPrepaidFormatter(),
+                new HtmlNbsFormatter(),
+                new HtmlRbghFormatter(),
+                new HtmlSbnFormatter(),
+                new HtmlSbnNewFormatter(),
+                new HtmlSbnSignatureFormatter(),
+                new HtmlSbpFormatter(),
+                new HtmlSbpDebitFormatter(),
+                new HtmlSbpPrepaidFormatter(),
+                new HtmlSibnFormatter(),
+                new HtmlUbaGPrepaidFormatter(),
+                new HtmlUnbnFormatter(),
+                new HtmlWemaFormatter(),
+                new HtmlWemaDebitFormatter(),
+                new HtmlAaibFormatter(),
+                new HtmlGnrImbPrepaidFormatter(),
 
-                // ── PDF formatters ─────────────────────────────────────────────────
-                new PdfQnbAdapter(),
-                new PdfBdcaAdapter(),
+                // ── Native PDF formatters (rendered as structured HTML) ─────────────
+                new PdfQnbFormatter(),
+                new PdfBdcaFormatter(),
 
-                // ── RawData formatters ─────────────────────────────────────────────
-                new RawDataAibkAdapter(),
-                new RawDataEgbAdapter(),
-                new RawDataAaibAdapter(),
-                new RawDataAibkAltAdapter(),
-                new RawDataAlxbAdapter(),
-                new RawDataAlxbCorpAdapter(),
-                new RawDataBrkaAdapter(),
-                new RawDataUnbAdapter(),
-                new RawDataVcbkAdapter(),
+                // ── Native RawData formatters ──────────────────────────────────────
+                new RawDataAibkFormatter(),
+                new RawDataEgbFormatter(),
+                new RawDataAaibFormatter(),
+                new RawDataAibkAltFormatter(),
+                new RawDataAlxbFormatter(),
+                new RawDataAlxbCorpFormatter(),
+                new RawDataBrkaFormatter(),
+                new RawDataUnbFormatter(),
+                new RawDataVcbkFormatter(),
 
-                // ── Text-label (fixed-width printer) formatters ────────────────────
-                new TextLabelFcmbAdapter(),
-                new TextLabelSuezAdapter(),
-                new TextLabelDbFbnAdapter(),
-                new TextLabelDbAibAdapter(),
-                new TextLabelDbBcaAdapter(),
-                new TextLabelDbIcbgAdapter(),
-                new TextLabelEdbeAdapter(),
-                new TextLabelFabgAdapter(),
+                // ── Native Text-label (fixed-width printer) formatters ─────────────
+                new TextLabelFcmbFormatter(),
+                new TextLabelSuezFormatter(),
+                new TextLabelDbFbnFormatter(),
+                new TextLabelDbAibFormatter(),
+                new TextLabelDbBcaFormatter(),
+                new TextLabelDbIcbgFormatter(),
+                new TextLabelEdbeFormatter(),
+                new TextLabelFabgFormatter(),
 
-                // ── Plain-text (control-character) formatters ──────────────────────
-                new TextEdbeAdapter(),
+                // ── Native Plain-text (control-character) formatters ───────────────
+                new TextEdbeFormatter(),
 
-                // ── XML formatters ─────────────────────────────────────────────────
-                new XmlIdbeAdapter(),
+                // ── Native XML formatters ──────────────────────────────────────────
+                new XmlIdbeFormatter(),
             };
-            var formatterFactory  = new StatementFormatterFactory(formatters, genericFormatter);
+
+            var formatterFactory = new StatementFormatterFactory(formatters, genericFormatter);
 
             // ── Repositories ───────────────────────────────────────────────────────
-            var merchantRepo      = new MerchantStatementRepository();
+            var merchantRepo = new MerchantStatementRepository();
 
             // ── Use Case Handlers ──────────────────────────────────────────────────
-            var merchantHandler   = new ProcessMerchantStatementHandler(
+            var merchantHandler = new ProcessMerchantStatementHandler(
                 merchantRepo, reportService, emailService, configService);
 
-            var bulkHandler       = new RunBulkMaintenanceHandler(maintenanceSvc);
+            var bulkHandler = new RunBulkMaintenanceHandler(maintenanceSvc);
 
             return new CompositionRoot(
-                configService:     configService,
-                sessionContext:    sessionContext,
-                connFactory:       connFactory,
-                emailService:      emailService,
-                ftpService:        ftpService,
-                reportService:     reportService,
+                configService:      configService,
+                sessionContext:     sessionContext,
+                connFactory:        connFactory,
+                emailService:       emailService,
+                ftpService:         ftpService,
+                reportService:      reportService,
                 maintenanceService: maintenanceSvc,
-                queryService:      queryService,
-                emailTracking:     emailTracking,
-                packagingService:  packagingService,
-                summaryService:    summaryService,
-                pageValidationSvc: pageValidationSvc,
-                statUpdateSvc:     statUpdateSvc,
-                formatterFactory:  formatterFactory,
-                merchantRepo:      merchantRepo,
-                merchantHandler:   merchantHandler,
-                bulkHandler:       bulkHandler);
+                queryService:       queryService,
+                emailTracking:      emailTracking,
+                packagingService:   packagingService,
+                summaryService:     summaryService,
+                pageValidationSvc:  pageValidationSvc,
+                statUpdateSvc:      statUpdateSvc,
+                formatterFactory:   formatterFactory,
+                merchantRepo:       merchantRepo,
+                merchantHandler:    merchantHandler,
+                bulkHandler:        bulkHandler);
         }
     }
 
