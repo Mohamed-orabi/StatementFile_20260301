@@ -1,14 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>StatementFile</AssemblyName>
     <RootNamespace>StatementFile.Presentation</RootNamespace>
-    <OutputType>WinExe</OutputType>
-    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>disable</Nullable>
-    <LangVersion>7.3</LangVersion>
-    <ApplicationIcon>..\..\StatementFile.ico</ApplicationIcon>
+    <LangVersion>10</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,11 +14,16 @@
     <ProjectReference Include="..\StatementFile.Infrastructure\StatementFile.Infrastructure.csproj" />
   </ItemGroup>
 
-  <!--
-    App.config is read by AppConfigurationService (Infrastructure).
-    Copy it to the output directory so it is always present at runtime.
-  -->
   <ItemGroup>
+    <!--
+      System.Configuration.ConfigurationManager allows AppConfigurationService
+      to read the App.config (deployed as StatementFile.dll.config) on .NET 8.
+    -->
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- App.config is deployed as StatementFile.dll.config for ConfigurationManager -->
     <None Update="App.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

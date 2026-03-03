@@ -1,39 +1,30 @@
-using System;
-using System.Windows.Forms;
 using StatementFile.Infrastructure.Configuration;
-using StatementFile.Presentation.Forms;
+using StatementFile.Presentation.Services;
 
-namespace StatementFile.Presentation
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddRazorComponents()
+                .AddInteractiveServerComponents();
+
+// Composition root is a singleton — one Oracle connection factory for the lifetime
+// of the web host, exactly as in the original WinForms Program.Main().
+builder.Services.AddSingleton(_ => DependencyInjection.Compose());
+
+// AppState is scoped so each browser session gets its own login state.
+builder.Services.AddScoped<AppState>();
+
+var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
 {
-    /// <summary>
-    /// Application entry point.
-    /// Constructs the DI composition root once, then passes it into the
-    /// login form so every subsequent form receives its dependencies
-    /// through constructor injection — no static service locators.
-    /// </summary>
-    internal static class Program
-    {
-        [STAThread]
-        private static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
-            try
-            {
-                // Build the full dependency graph at startup
-                CompositionRoot root = DependencyInjection.Compose();
-
-                Application.Run(new frmLogin(root));
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    $"Fatal startup error:\n{ex.Message}",
-                    "StatementFile",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-        }
-    }
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
 }
+
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+app.MapRazorComponents<StatementFile.Presentation.App>()
+   .AddInteractiveServerRenderMode();
+
+app.Run();

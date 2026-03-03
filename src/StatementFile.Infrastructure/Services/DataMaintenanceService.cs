@@ -213,6 +213,37 @@ namespace StatementFile.Infrastructure.Services
             }
         }
 
+        public int DeleteOnHoldTransactions(int branchCode)
+        {
+            string schema      = _config.GetMainSchema();
+            string detailTable = _session.DetailTable;
+
+            // Deletes detail rows marked on-hold before statement generation.
+            // Legacy: clsMaintainData.deleteOnHoldTrans()
+            string sql =
+                $"DELETE /*+ parallel ({schema}{detailTable},4) */ FROM {schema}{detailTable} " +
+                $"WHERE branch = {branchCode} AND HOLSTMT = 'Y'";
+
+            using (var conn = _connFactory.CreateOpenConnection())
+                return Execute(conn, sql);
+        }
+
+        public int FixReward(int branchCode, string rewardContractCondition)
+        {
+            string schema = _config.GetMainSchema();
+            string table  = _session.MainTable;
+
+            // Resets the reward-generation flag so the formatter re-calculates
+            // reward balances during this run.
+            // Legacy: clsMaintainData.fixReward()
+            string sql =
+                $"UPDATE {schema}{table} SET REWARDGENERATED = 'N' " +
+                $"WHERE branch = {branchCode} AND contracttype = {rewardContractCondition}";
+
+            using (var conn = _connFactory.CreateOpenConnection())
+                return Execute(conn, sql);
+        }
+
         // ── Private Helpers ────────────────────────────────────────────────────────
 
         private static bool IsCorruptedArabic(string value)

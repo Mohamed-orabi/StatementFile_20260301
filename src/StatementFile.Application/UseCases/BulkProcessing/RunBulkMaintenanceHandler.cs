@@ -5,51 +5,86 @@ using StatementFile.Domain.Interfaces.Services;
 namespace StatementFile.Application.UseCases.BulkProcessing
 {
     /// <summary>
-    /// Orchestrates the bulk pre-processing maintenance steps that must run
-    /// before statement generation for any branch.
+    /// Orchestrates ALL pre-statement-generation maintenance steps for one branch.
     ///
-    /// Steps (order preserved from legacy clsMaintainData):
-    ///   1. Delete NULL-card rows (excluding reward / installment as configured)
-    ///   2. Match card-branch parts across all accounts for the branch
-    ///   3. Optionally fix garbled Arabic address fields
+    /// Execution order is fixed and mirrors the legacy clsMaintainData call sequence
+    /// found in clsBasStatementHtml.Statement() and the individual bank Statement()
+    /// overrides in the Banks/ folder:
     ///
-    /// Returns a summary result with row counts per step.
+    ///   1. Delete on-hold transactions (HOLSTMT = 'Y') if requested
+    ///      → clsMaintainData.deleteOnHoldTrans()  [AUB, Branch 25]
+    ///
+    ///   2. Delete NULL-card rows (excluding reward / installment contracts)
+    ///      → clsMaintainData.CleanNullCards()  [all credit/debit/prepaid runs]
+    ///
+    ///   3. Card-branch-part alignment
+    ///      → clsMaintainData.matchCardBranch4Account()  [virtually all runs]
+    ///
+    ///   4. Arabic address corruption fix
+    ///      → clsMaintainData.fixArbicAddress()  [Egyptian banks]
+    ///
+    ///   5. Reward programme pre-fix
+    ///      → clsMaintainData.fixReward()  [runs with Reward mode enabled]
+    ///
+    /// All steps are optional flags; the command encodes which steps apply
+    /// to the current bank/product combination.
+    /// Returns a summary result with row counts for each completed step.
     /// </summary>
     public sealed class RunBulkMaintenanceHandler
     {
-        private readonly IDataMaintenanceService _maintenanceService;
+        private readonly IDataMaintenanceService _maintenance;
 
-        public RunBulkMaintenanceHandler(IDataMaintenanceService maintenanceService)
+        public RunBulkMaintenanceHandler(IDataMaintenanceService maintenance)
         {
-            _maintenanceService = maintenanceService
-                ?? throw new ArgumentNullException(nameof(maintenanceService));
+            _maintenance = maintenance ?? throw new ArgumentNullException(nameof(maintenance));
         }
 
         public Result<BulkMaintenanceResult> Handle(RunBulkMaintenanceCommand command)
         {
             try
             {
-                var summary = new BulkMaintenanceResult { BranchCode = command.BranchCode };
+                var result = new BulkMaintenanceResult { BranchCode = command.BranchCode };
 
-                // Step 1: Clean null-card rows
-                summary.NullCardsDeleted = _maintenanceService.CleanNullCards(
-                    command.BranchCode,
-                    command.ExcludeReward,
-                    command.ExcludeInstallment,
-                    command.InstallmentCondition);
-
-                // Step 2: Card-branch matching
-                summary.CardBranchRecordsUpdated = _maintenanceService.MatchCardBranchForAccount(
-                    command.BranchCode);
-
-                // Step 3: Arabic address fix (optional)
-                if (command.RunArabicAddressFix)
+                // ── Step 1: On-hold transaction delete ─────────────────────────────
+                if (command.RunOnHoldDelete)
                 {
-                    summary.ArabicAddressRecordsFixed = _maintenanceService.FixArabicAddress(
+                    result.OnHoldRowsDeleted = _maintenance.DeleteOnHoldTransactions(
                         command.BranchCode);
                 }
 
-                return Result.Ok(summary);
+                // ── Step 2: NULL-card row delete ───────────────────────────────────
+                if (command.RunNullCardDelete)
+                {
+                    result.NullCardsDeleted = _maintenance.CleanNullCards(
+                        command.BranchCode,
+                        command.ExcludeReward,
+                        command.ExcludeInstallment,
+                        command.InstallmentCondition);
+                }
+
+                // ── Step 3: Card-branch-part alignment ─────────────────────────────
+                if (command.RunCardBranchMatch)
+                {
+                    result.CardBranchRecordsUpdated = _maintenance.MatchCardBranchForAccount(
+                        command.BranchCode);
+                }
+
+                // ── Step 4: Arabic address fix ─────────────────────────────────────
+                if (command.RunArabicAddressFix)
+                {
+                    result.ArabicAddressRecordsFixed = _maintenance.FixArabicAddress(
+                        command.BranchCode);
+                }
+
+                // ── Step 5: Reward programme pre-fix ──────────────────────────────
+                if (command.RunRewardFix)
+                {
+                    result.RewardRowsFixed = _maintenance.FixReward(
+                        command.BranchCode,
+                        command.RewardContractCondition);
+                }
+
+                return Result.Ok(result);
             }
             catch (Exception ex)
             {
@@ -61,9 +96,11 @@ namespace StatementFile.Application.UseCases.BulkProcessing
 
     public sealed class BulkMaintenanceResult
     {
-        public int BranchCode                  { get; set; }
-        public int NullCardsDeleted            { get; set; }
-        public int CardBranchRecordsUpdated    { get; set; }
-        public int ArabicAddressRecordsFixed   { get; set; }
+        public int BranchCode                { get; set; }
+        public int OnHoldRowsDeleted         { get; set; }
+        public int NullCardsDeleted          { get; set; }
+        public int CardBranchRecordsUpdated  { get; set; }
+        public int ArabicAddressRecordsFixed { get; set; }
+        public int RewardRowsFixed           { get; set; }
     }
 }

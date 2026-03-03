@@ -1,0 +1,14 @@
+@inherits LayoutComponentBase
+
+<div class="d-flex vh-100">
+    <nav class="d-flex flex-column bg-dark text-white p-3" style="width:220px;flex-shrink:0">
+        <a class="navbar-brand text-white fw-bold mb-4 text-decoration-none" href="/">
+            StatementFile
+        </a>
+        <NavMenu />
+    </nav>
+
+    <main class="flex-grow-1 overflow-auto p-4">
+        @Body
+    </main>
+</div>

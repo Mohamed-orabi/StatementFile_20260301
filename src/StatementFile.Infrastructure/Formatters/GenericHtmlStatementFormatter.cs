@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Text;
+using StatementFile.Application.UseCases.StatementGeneration;
 using StatementFile.Domain.Interfaces.Services;
 
 namespace StatementFile.Infrastructure.Formatters
@@ -17,14 +18,15 @@ namespace StatementFile.Infrastructure.Formatters
         public string FormatterKey => "HTML_GENERIC";
 
         public IEnumerable<string> Format(
-            DataSet masterDataSet,
-            string  outputDirectory,
-            int     branchCode,
-            string  cardProduct)
+            StatementDataContext     context,
+            string                   outputDirectory,
+            GenerateStatementCommand command)
         {
             string outputFile = Path.Combine(
                 outputDirectory,
-                $"Statement_{branchCode}_{cardProduct}.html");
+                $"Statement_{command.BranchCode}_{command.CardProduct}.html");
+
+            DataSet masterDataSet = context?.MasterDataSet;
 
             var sb = new StringBuilder();
             sb.AppendLine("<!DOCTYPE html>");

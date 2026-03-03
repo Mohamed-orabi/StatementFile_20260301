@@ -1,0 +1,147 @@
+@page "/merchant"
+@rendermode InteractiveServer
+@inject CompositionRoot Root
+@inject AppState AppState
+@inject NavigationManager Nav
+
+<PageTitle>Merchant Statement — StatementFile</PageTitle>
+
+@if (!AppState.IsLoggedIn)
+{
+    Nav.NavigateTo("/login", replace: true);
+    return;
+}
+
+<h4 class="mb-3">Merchant Statement</h4>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">Process Merchant XML</div>
+            <div class="card-body">
+
+                <div class="mb-3">
+                    <label class="form-label">Bank Full Name</label>
+                    <input class="form-control" @bind="BankFullName"
+                           placeholder="e.g. United Bank for Africa" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Bank Name (code)</label>
+                    <input class="form-control" @bind="BankName"
+                           placeholder="e.g. UBA" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Bank Code</label>
+                    <input class="form-control" @bind="BankCode"
+                           placeholder="e.g. UBA01" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Processing Date</label>
+                    <input type="date" class="form-control"
+                           @bind="ProcessingDate"
+                           @bind:format="yyyy-MM-dd" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Merchant XML File</label>
+                    <InputFile class="form-control"
+                               OnChange="OnFileSelected"
+                               accept=".xml" />
+                    @if (UploadedFileName != null)
+                    {
+                        <small class="text-muted">@UploadedFileName (@FileSizeKb KB)</small>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(ResultMessage))
+                {
+                    <div class="alert @(ResultIsError ? "alert-danger" : "alert-success") py-2">
+                        @ResultMessage
+                    </div>
+                }
+
+                <button class="btn btn-primary w-100"
+                        @onclick="Process"
+                        disabled="@(Busy || UploadedBytes == null || string.IsNullOrWhiteSpace(BankName))">
+                    @(Busy ? "Processing…" : "Process Merchant Statement")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string   BankFullName     { get; set; } = string.Empty;
+    private string   BankName         { get; set; } = string.Empty;
+    private string   BankCode         { get; set; } = string.Empty;
+    private DateTime ProcessingDate   { get; set; } = DateTime.Today;
+
+    private byte[]   UploadedBytes    { get; set; }
+    private string   UploadedFileName { get; set; }
+    private long     FileSizeKb       => UploadedBytes == null ? 0 : UploadedBytes.Length / 1024;
+
+    private string   ResultMessage    { get; set; } = string.Empty;
+    private bool     ResultIsError    { get; set; }
+    private bool     Busy             { get; set; }
+
+    private const long MaxFileBytes = 50 * 1024 * 1024; // 50 MB
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > MaxFileBytes)
+        {
+            ResultIsError   = true;
+            ResultMessage   = $"File is too large (max {MaxFileBytes / 1024 / 1024} MB).";
+            return;
+        }
+
+        using var ms = new MemoryStream();
+        await file.OpenReadStream(MaxFileBytes).CopyToAsync(ms);
+        UploadedBytes    = ms.ToArray();
+        UploadedFileName = file.Name;
+        ResultMessage    = string.Empty;
+    }
+
+    private async Task Process()
+    {
+        if (UploadedBytes == null) return;
+
+        Busy          = true;
+        ResultMessage = string.Empty;
+
+        // Write the uploaded XML to a temp file so the handler can read it.
+        string tempXml = Path.GetTempFileName() + ".xml";
+        try
+        {
+            await File.WriteAllBytesAsync(tempXml, UploadedBytes);
+
+            var cmd = new ProcessMerchantStatementCommand(
+                xmlSourceFilePath: tempXml,
+                bankFullName:      BankFullName,
+                bankName:          BankName,
+                bankCode:          BankCode,
+                processingDate:    ProcessingDate);
+
+            var result = await Task.Run(() => Root.MerchantHandler.Handle(cmd));
+
+            ResultIsError = result.IsFailure;
+            ResultMessage = result.IsSuccess
+                ? "Processed successfully."
+                : $"Error: {result.Error}";
+        }
+        catch (Exception ex)
+        {
+            ResultIsError = true;
+            ResultMessage = $"Unexpected error: {ex.Message}";
+        }
+        finally
+        {
+            if (File.Exists(tempXml)) File.Delete(tempXml);
+            Busy = false;
+        }
+    }
+}

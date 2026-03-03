@@ -8,6 +8,9 @@ using StatementFile.Domain.Interfaces.Services;
 using StatementFile.Infrastructure.Data;
 using StatementFile.Infrastructure.Data.Repositories;
 using StatementFile.Infrastructure.Formatters;
+using StatementFile.Infrastructure.Formatters.Html;
+using StatementFile.Infrastructure.Formatters.RawData;
+using StatementFile.Infrastructure.Formatters.TextLabel;
 using StatementFile.Infrastructure.Services;
 
 namespace StatementFile.Infrastructure.Configuration
@@ -30,48 +33,126 @@ namespace StatementFile.Infrastructure.Configuration
         public static CompositionRoot Compose()
         {
             // ── Singletons ─────────────────────────────────────────────────────────
-            var configService    = new AppConfigurationService();
-            var sessionContext   = new SessionContext();
-            var connFactory      = new OracleConnectionFactory(configService);
+            var configService  = new AppConfigurationService();
+            var sessionContext = new SessionContext();
+            var connFactory    = new OracleConnectionFactory(configService);
 
             // ── Services ───────────────────────────────────────────────────────────
-            var emailService     = new EmailService(configService);
-            var ftpService       = new FtpService(configService);
-            var reportService    = new ReportService();
-            var maintenanceSvc   = new DataMaintenanceService(connFactory, configService, sessionContext);
+            var emailService       = new EmailService(configService);
+            var ftpService         = new FtpService(configService);
+            var reportService      = new ReportService();
+            var maintenanceSvc     = new DataMaintenanceService(connFactory, configService, sessionContext);
+            var queryService       = new StatementQueryService(connFactory, configService, sessionContext);
+            var emailTracking      = new EmailTrackingService();
+            var packagingService   = new FilePackagingService();
 
             // ── Formatter registry (Open/Closed: add new formatters here only) ─────
-            var genericFormatter = new GenericHtmlStatementFormatter();
-            var formatters       = new IStatementFormatterService[]
+            var genericFormatter   = new GenericHtmlStatementFormatter();
+            var formatters         = new IStatementFormatterService[]
             {
                 genericFormatter,
-                // Add bank-specific formatters here, e.g.:
-                // new BaiHtmlStatementFormatter(),
-                // new UbaTxtStatementFormatter(),
+
+                // ── HTML formatters ────────────────────────────────────────────────
+                new HtmlUbaAdapter(),
+                new HtmlAbpAdapter(),
+                new HtmlAbpSupAdapter(),
+                new HtmlAibkAdapter(),
+                new HtmlAibkValuAdapter(),
+                new HtmlAlxbAdapter(),
+                new HtmlAlxbCpAdapter(),
+                new HtmlBaiCreditAdapter(),
+                new HtmlBaiPrepaidAdapter(),
+                new HtmlBdcaAdapter(),
+                new HtmlBpcAdapter(),
+                new HtmlBpcPrepaidAdapter(),
+                new HtmlCmbAdapter(),
+                new HtmlDbnAdapter(),
+                new HtmlFbpgAdapter(),
+                new HtmlGtbkAdapter(),
+                new HtmlGtbkDebitAdapter(),
+                new HtmlGtbnAdapter(),
+                new HtmlGtbuPrepaidAdapter(),
+                new HtmlFbnAdapter(),
+                new HtmlFbnCorpAdapter(),
+                new HtmlFbnDebitAdapter(),
+                new HtmlFbnSupAdapter(),
+                new HtmlHblnAdapter(),
+                new HtmlHblnPrepaidAdapter(),
+                new HtmlIcbgAdapter(),
+                new HtmlImbPrepaidAdapter(),
+                new HtmlNbsAdapter(),
+                new HtmlRbghAdapter(),
+                new HtmlSbnAdapter(),
+                new HtmlSbnNewAdapter(),
+                new HtmlSbnSignatureAdapter(),
+                new HtmlSbpAdapter(),
+                new HtmlSbpDebitAdapter(),
+                new HtmlSbpPrepaidAdapter(),
+                new HtmlSibnAdapter(),
+                new HtmlUbaGPrepaidAdapter(),
+                new HtmlUnbnAdapter(),
+                new HtmlWemaAdapter(),
+                new HtmlWemaDebitAdapter(),
+                new HtmlAaibAdapter(),
+                new HtmlGnrImbPrepaidAdapter(),
+
+                // ── PDF formatters ─────────────────────────────────────────────────
+                new PdfQnbAdapter(),
+                new PdfBdcaAdapter(),
+
+                // ── RawData formatters ─────────────────────────────────────────────
+                new RawDataAibkAdapter(),
+                new RawDataEgbAdapter(),
+                new RawDataAaibAdapter(),
+                new RawDataAibkAltAdapter(),
+                new RawDataAlxbAdapter(),
+                new RawDataAlxbCorpAdapter(),
+                new RawDataBrkaAdapter(),
+                new RawDataUnbAdapter(),
+                new RawDataVcbkAdapter(),
+
+                // ── Text-label (fixed-width printer) formatters ────────────────────
+                new TextLabelFcmbAdapter(),
+                new TextLabelSuezAdapter(),
+                new TextLabelDbFbnAdapter(),
+                new TextLabelDbAibAdapter(),
+                new TextLabelDbBcaAdapter(),
+                new TextLabelDbIcbgAdapter(),
+                new TextLabelEdbeAdapter(),
+                new TextLabelFabgAdapter(),
+
+                // ── Plain-text (control-character) formatters ──────────────────────
+                new TextEdbeAdapter(),
+
+                // ── XML formatters ─────────────────────────────────────────────────
+                new XmlIdbeAdapter(),
             };
-            var formatterFactory = new StatementFormatterFactory(formatters, genericFormatter);
+            var formatterFactory   = new StatementFormatterFactory(formatters, genericFormatter);
 
             // ── Repositories & UoW factory ─────────────────────────────────────────
-            var merchantRepo     = new MerchantStatementRepository();
+            var merchantRepo       = new MerchantStatementRepository();
 
             // ── Use Case Handlers ──────────────────────────────────────────────────
-            var merchantHandler  = new ProcessMerchantStatementHandler(
+            var merchantHandler    = new ProcessMerchantStatementHandler(
                 merchantRepo, reportService, emailService, configService);
 
-            var bulkHandler      = new RunBulkMaintenanceHandler(maintenanceSvc);
+            var bulkHandler        = new RunBulkMaintenanceHandler(maintenanceSvc);
 
             return new CompositionRoot(
-                configService:       configService,
-                sessionContext:      sessionContext,
-                connFactory:         connFactory,
-                emailService:        emailService,
-                ftpService:          ftpService,
-                reportService:       reportService,
-                maintenanceService:  maintenanceSvc,
-                formatterFactory:    formatterFactory,
-                merchantRepo:        merchantRepo,
-                merchantHandler:     merchantHandler,
-                bulkHandler:         bulkHandler);
+                configService:      configService,
+                sessionContext:     sessionContext,
+                connFactory:        connFactory,
+                emailService:       emailService,
+                ftpService:         ftpService,
+                reportService:      reportService,
+                maintenanceService: maintenanceSvc,
+                queryService:       queryService,
+                emailTracking:      emailTracking,
+                packagingService:   packagingService,
+                formatterFactory:   formatterFactory,
+                merchantRepo:       merchantRepo,
+                merchantHandler:    merchantHandler,
+                bulkHandler:        bulkHandler);
         }
     }
 
@@ -87,6 +168,9 @@ namespace StatementFile.Infrastructure.Configuration
         public IFtpService                    FtpService         { get; }
         public IReportService                 ReportService      { get; }
         public IDataMaintenanceService        MaintenanceService { get; }
+        public IStatementQueryService         QueryService       { get; }
+        public IEmailTrackingService          EmailTracking      { get; }
+        public IFilePackagingService          PackagingService   { get; }
         public IStatementFormatterFactory     FormatterFactory   { get; }
         public IMerchantStatementRepository   MerchantRepo       { get; }
         public ProcessMerchantStatementHandler MerchantHandler   { get; }
@@ -100,6 +184,9 @@ namespace StatementFile.Infrastructure.Configuration
             IFtpService                    ftpService,
             IReportService                 reportService,
             IDataMaintenanceService        maintenanceService,
+            IStatementQueryService         queryService,
+            IEmailTrackingService          emailTracking,
+            IFilePackagingService          packagingService,
             IStatementFormatterFactory     formatterFactory,
             IMerchantStatementRepository   merchantRepo,
             ProcessMerchantStatementHandler merchantHandler,
@@ -112,6 +199,9 @@ namespace StatementFile.Infrastructure.Configuration
             FtpService         = ftpService;
             ReportService      = reportService;
             MaintenanceService = maintenanceService;
+            QueryService       = queryService;
+            EmailTracking      = emailTracking;
+            PackagingService   = packagingService;
             FormatterFactory   = formatterFactory;
             MerchantRepo       = merchantRepo;
             MerchantHandler    = merchantHandler;
@@ -132,9 +222,13 @@ namespace StatementFile.Infrastructure.Configuration
             => new GenerateStatementHandler(
                 CreateUnitOfWork(),
                 FormatterFactory,
+                QueryService,
                 ReportService,
                 EmailService,
                 FtpService,
+                EmailTracking,
+                PackagingService,
+                MaintenanceService,
                 ConfigService);
     }
 }

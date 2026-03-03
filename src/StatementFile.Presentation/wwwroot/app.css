@@ -1,0 +1,23 @@
+/* StatementFile — minimal global styles */
+
+html, body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+}
+
+/* Make nav links highlight properly */
+.nav-link.active {
+    color: #fff !important;
+    font-weight: 600;
+}
+
+/* Sticky table header inside scrollable card */
+.sticky-top {
+    z-index: 1;
+}
+
+/* Monospace status log */
+#statusLog {
+    font-size: 12px;
+    line-height: 1.6;
+}

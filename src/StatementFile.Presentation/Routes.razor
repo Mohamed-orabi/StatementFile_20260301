@@ -1,0 +1,13 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData"
+                   DefaultLayout="typeof(StatementFile.Presentation.Components.Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="typeof(StatementFile.Presentation.Components.Layout.MainLayout)">
+            <p class="mt-4 text-muted">Sorry, there is nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
+</Router>
