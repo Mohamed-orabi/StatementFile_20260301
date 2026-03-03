@@ -1,5 +1,3 @@
-using StatementFile.Domain.Interfaces.Services;
-
 namespace StatementFile.Application.Interfaces
 {
     /// <summary>

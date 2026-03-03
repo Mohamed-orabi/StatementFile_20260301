@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using StatementFile.Application.Interfaces;
-using StatementFile.Domain.Interfaces.Services;
 
 namespace StatementFile.Infrastructure.Services
 {

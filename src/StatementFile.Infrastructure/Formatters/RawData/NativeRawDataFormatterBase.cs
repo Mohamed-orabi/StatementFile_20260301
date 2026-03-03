@@ -4,8 +4,8 @@ using System.Data;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using StatementFile.Application.Interfaces;
 using StatementFile.Application.UseCases.StatementGeneration;
-using StatementFile.Domain.Interfaces.Services;
 
 namespace StatementFile.Infrastructure.Formatters.RawData
 {

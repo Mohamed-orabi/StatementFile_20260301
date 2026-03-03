@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
+using StatementFile.Application.Interfaces;
 using StatementFile.Application.UseCases.StatementGeneration;
-using StatementFile.Domain.Interfaces.Services;
 
 namespace StatementFile.Infrastructure.Formatters.Xml
 {

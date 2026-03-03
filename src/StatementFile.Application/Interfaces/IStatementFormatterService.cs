@@ -1,8 +1,7 @@
 using System.Collections.Generic;
-using System.Data;
 using StatementFile.Application.UseCases.StatementGeneration;
 
-namespace StatementFile.Domain.Interfaces.Services
+namespace StatementFile.Application.Interfaces
 {
     /// <summary>
     /// Renders statement content into a specific physical output format.
@@ -56,8 +55,8 @@ namespace StatementFile.Domain.Interfaces.Services
         /// (\u000C form-feed, \u000D carriage-return) are handled internally.
         /// </summary>
         IEnumerable<string> Format(
-            StatementDataContext context,
-            string               outputDirectory,
+            StatementDataContext     context,
+            string                   outputDirectory,
             GenerateStatementCommand command);
     }
 }
