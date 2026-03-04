@@ -46,7 +46,7 @@ namespace StatementFile.Api.Controllers
                 return BadRequest("XmlContentBase64 is not valid base64.");
             }
 
-            string tempXml = Path.GetTempFileName() + ".xml";
+            string tempXml = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.xml");
             try
             {
                 System.IO.File.WriteAllBytes(tempXml, xmlBytes);
