@@ -1,17 +1,22 @@
 using System;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using StatementFile.Presentation.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRazorComponents()
-                .AddInteractiveServerComponents();
+builder.Services.AddRazorComponents();
 
-// AppState is scoped so each browser session gets its own login state.
-builder.Services.AddScoped<AppState>();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath         = "/login";
+        options.SlidingExpiration = true;
+        options.ExpireTimeSpan    = TimeSpan.FromHours(8);
+    });
 
-// All Blazor pages communicate with the backend through StatementFile.Api.
-// Base address must match the URL the Api project listens on
-// (configured in appsettings.json → "ApiBaseUrl").
+builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
+
 Uri apiBaseAddress = new Uri(
     builder.Configuration["ApiBaseUrl"]
     ?? throw new InvalidOperationException(
@@ -39,9 +44,17 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapRazorComponents<StatementFile.Presentation.App>()
-   .AddInteractiveServerRenderMode();
+// Logout endpoint — POST only so it can't be triggered by a GET link.
+app.MapPost("/logout", async (HttpContext ctx) =>
+{
+    await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    return Results.Redirect("/login");
+});
+
+app.MapRazorComponents<StatementFile.Presentation.App>();
 
 app.Run();

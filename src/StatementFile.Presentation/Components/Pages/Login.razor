@@ -1,8 +1,7 @@
 @page "/login"
-@rendermode InteractiveServer
 @inject IAuthApiClient AuthApi
-@inject AppState AppState
 @inject NavigationManager Nav
+@inject IHttpContextAccessor HttpContextAccessor
 
 <PageTitle>Login — StatementFile</PageTitle>
 
@@ -13,21 +12,19 @@
                 <h5 class="mb-0">StatementFile — Login</h5>
             </div>
             <div class="card-body">
-                <EditForm Model="Model" OnValidSubmit="DoLogin">
-                    <DataAnnotationsValidator />
+                <form method="post" @formname="login">
+                    <AntiforgeryToken />
 
                     <div class="mb-3">
                         <label class="form-label">Username</label>
-                        <InputText class="form-control"
-                                   @bind-Value="Model.UserName"
-                                   placeholder="Oracle schema user" />
+                        <input name="UserName" class="form-control"
+                               placeholder="Oracle schema user"
+                               value="@(Credentials?.UserName ?? string.Empty)" />
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Password</label>
-                        <InputText type="password"
-                                   class="form-control"
-                                   @bind-Value="Model.Password" />
+                        <input name="Password" type="password" class="form-control" />
                     </div>
 
                     @if (!string.IsNullOrEmpty(ErrorMessage))
@@ -35,34 +32,33 @@
                         <div class="alert alert-danger py-2">@ErrorMessage</div>
                     }
 
-                    <button type="submit" class="btn btn-primary w-100" disabled="@Busy">
-                        @(Busy ? "Connecting…" : "Login")
-                    </button>
-                </EditForm>
+                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
 @code {
-    private LoginModel Model { get; } = new();
+    [SupplyParameterFromForm]
+    private LoginModel Credentials { get; set; }
+
     private string ErrorMessage { get; set; } = string.Empty;
-    private bool   Busy        { get; set; }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        if (AppState.IsLoggedIn)
+        var ctx = HttpContextAccessor.HttpContext;
+
+        if (ctx?.User?.Identity?.IsAuthenticated == true)
+        {
             Nav.NavigateTo("/", replace: true);
-    }
+            return;
+        }
 
-    private async Task DoLogin()
-    {
-        Busy         = true;
-        ErrorMessage = string.Empty;
+        if (Credentials == null) return;
 
         try
         {
-            // Verify Oracle connectivity via the API before allowing the user in.
             bool ok = await AuthApi.PingAsync();
             if (!ok)
             {
@@ -70,17 +66,17 @@
                 return;
             }
 
-            AppState.IsLoggedIn = true;
-            AppState.UserName   = Model.UserName;
-            Nav.NavigateTo("/");
+            var claims    = new List<Claim> { new Claim(ClaimTypes.Name, Credentials.UserName ?? string.Empty) };
+            var identity  = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            await ctx!.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+            Nav.NavigateTo("/", replace: true);
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Login failed: {ex.Message}";
-        }
-        finally
-        {
-            Busy = false;
         }
     }
 

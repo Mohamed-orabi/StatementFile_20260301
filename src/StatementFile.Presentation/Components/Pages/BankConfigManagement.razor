@@ -1,66 +1,291 @@
 @page "/bank-config"
-@rendermode InteractiveServer
+@attribute [Authorize]
 @inject IBankProductConfigApiClient BankConfigApi
-@inject AppState AppState
 @inject NavigationManager Nav
 
 <PageTitle>Bank Configuration — StatementFile</PageTitle>
 
-@if (!AppState.IsLoggedIn)
-{
-    Nav.NavigateTo("/login", replace: true);
-    return;
-}
-
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0">Bank / Product Configuration</h4>
     <div class="d-flex gap-2">
-        <button class="btn btn-success btn-sm" @onclick="OpenCreateForm">+ New Configuration</button>
+        <a href="/bank-config?mode=create" class="btn btn-success btn-sm">+ New Configuration</a>
         <a href="/" class="btn btn-outline-secondary btn-sm">← Back to Generation</a>
     </div>
 </div>
 
-@if (AlertMessage != null)
+@* ── Create / Edit form ────────────────────────────────────────────────── *@
+@if (Mode == "create" || Mode == "edit")
 {
-    <div class="alert @(AlertIsError ? "alert-danger" : "alert-success") alert-dismissible py-2">
-        @AlertMessage
-        <button type="button" class="btn-close" @onclick="() => AlertMessage = null"></button>
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>@(Id == 0 ? "New Configuration" : $"Edit Configuration #{Id}")</span>
+            <a href="/bank-config" class="btn-close" title="Cancel"></a>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(FormError))
+            {
+                <div class="alert alert-danger py-1 mb-2">@FormError</div>
+            }
+            <form method="post" @formname="config-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="EditingId" value="@Id" />
+
+                <div class="row g-2">
+                    <div class="col-12"><h6 class="mb-1 text-muted">Identity</h6></div>
+                    <div class="col-md-2">
+                        <label class="form-label form-label-sm">Branch Code</label>
+                        <input type="number" name="BranchCode" class="form-control form-control-sm"
+                               value="@DisplayForm.BranchCode" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label form-label-sm">Bank Code</label>
+                        <input name="BankName" class="form-control form-control-sm" placeholder="UBA"
+                               value="@DisplayForm.BankName" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Bank Full Name</label>
+                        <input name="BankFullName" class="form-control form-control-sm"
+                               value="@DisplayForm.BankFullName" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Card Product</label>
+                        <input name="CardProduct" class="form-control form-control-sm" placeholder="UBACR"
+                               value="@DisplayForm.CardProduct" />
+                    </div>
+
+                    <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Output</h6></div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Output Type</label>
+                        <select name="OutputType" class="form-select form-select-sm">
+                            @foreach (var v in Enum.GetValues<StatementOutputType>())
+                            {
+                                <option value="@((int)v)" selected="@(DisplayForm.OutputType == (int)v)">@v</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Formatter Key</label>
+                        <input name="FormatterKey" class="form-control form-control-sm" placeholder="HTML_UBA"
+                               value="@DisplayForm.FormatterKey" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label form-label-sm">Stmt Suffix</label>
+                        <input name="StatementTypeSuffix" class="form-control form-control-sm" placeholder="CR"
+                               value="@DisplayForm.StatementTypeSuffix" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label form-label-sm">Sched. Day</label>
+                        <input type="number" min="1" max="31" name="ScheduledDay" class="form-control form-control-sm"
+                               value="@DisplayForm.ScheduledDay" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm">Card Type</label>
+                        <select name="CardType" class="form-select form-select-sm">
+                            @foreach (var v in Enum.GetValues<CardType>())
+                            {
+                                <option value="@((int)v)" selected="@(DisplayForm.CardType == (int)v)">@v</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm">Statement Type</label>
+                        <select name="StatementType" class="form-select form-select-sm">
+                            @foreach (var v in Enum.GetValues<StatementType>())
+                            {
+                                <option value="@((int)v)" selected="@(DisplayForm.StatementType == (int)v)">@v</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm">Field Separator</label>
+                        <input name="FieldSeparator" class="form-control form-control-sm" placeholder=","
+                               value="@DisplayForm.FieldSeparator" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm">Sort Order</label>
+                        <input type="number" name="SortOrder" class="form-control form-control-sm"
+                               value="@DisplayForm.SortOrder" />
+                    </div>
+
+                    <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Flags</h6></div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="fAppend" name="AppendMode"
+                                   checked="@DisplayForm.AppendMode" />
+                            <label class="form-check-label" for="fAppend">Append Mode</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="fCorp" name="UseCorporateAccountNumber"
+                                   checked="@DisplayForm.UseCorporateAccountNumber" />
+                            <label class="form-check-label" for="fCorp">Corporate Account No.</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="fActive" name="IsActive"
+                                   checked="@DisplayForm.IsActive" />
+                            <label class="form-check-label" for="fActive">Active</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Processing Modes</h6></div>
+                    <div class="col-12">
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var mode in NonStandardModes)
+                            {
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="checkbox"
+                                           id="pm_@mode" name="SelectedModes" value="@((long)mode)"
+                                           checked="@(((ProcessingMode)DisplayForm.ProcessingModes).HasFlag(mode))" />
+                                    <label class="form-check-label" for="pm_@mode"><small>@mode</small></label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Oracle Conditions</h6></div>
+                    <div class="col-12">
+                        <label class="form-label form-label-sm">Reward Contract Condition</label>
+                        <input name="RewardContractCondition" class="form-control form-control-sm"
+                               placeholder="'New Reward Contract'" value="@DisplayForm.RewardContractCondition" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label form-label-sm">Installment Contract Condition</label>
+                        <input name="InstallmentContractCondition" class="form-control form-control-sm"
+                               value="@DisplayForm.InstallmentContractCondition" />
+                    </div>
+
+                    <div class="col-12 mt-2"><h6 class="mb-1 text-muted">PDF (optional)</h6></div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm">Report Template Name</label>
+                        <input name="ReportTemplateName" class="form-control form-control-sm"
+                               value="@DisplayForm.ReportTemplateName" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm">PDF Password Scheme</label>
+                        <select name="PdfPasswordScheme" class="form-select form-select-sm">
+                            <option value="" selected="@(string.IsNullOrEmpty(DisplayForm.PdfPasswordScheme))">None</option>
+                            <option value="DOB" selected="@(DisplayForm.PdfPasswordScheme == "DOB")">DOB (Date of Birth)</option>
+                            <option value="CARD4" selected="@(DisplayForm.PdfPasswordScheme == "CARD4")">CARD4 (Last 4 digits)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Email / Branding</h6></div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm">Email From Address</label>
+                        <input name="EmailFromAddress" class="form-control form-control-sm"
+                               value="@DisplayForm.EmailFromAddress" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label form-label-sm">Bank Website URL</label>
+                        <input name="BankWebsiteUrl" class="form-control form-control-sm"
+                               value="@DisplayForm.BankWebsiteUrl" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Facebook URL</label>
+                        <input name="FacebookUrl" class="form-control form-control-sm"
+                               value="@DisplayForm.FacebookUrl" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">LinkedIn URL</label>
+                        <input name="LinkedInUrl" class="form-control form-control-sm"
+                               value="@DisplayForm.LinkedInUrl" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">YouTube URL</label>
+                        <input name="YouTubeUrl" class="form-control form-control-sm"
+                               value="@DisplayForm.YouTubeUrl" />
+                    </div>
+
+                    <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Pagination &amp; Timing</h6></div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Max Trans / Page</label>
+                        <input type="number" name="MaxTransactionsPerPage" class="form-control form-control-sm"
+                               value="@DisplayForm.MaxTransactionsPerPage" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Max Trans Last Page</label>
+                        <input type="number" name="MaxTransactionsLastPage" class="form-control form-control-sm"
+                               value="@DisplayForm.MaxTransactionsLastPage" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Email Wait (ms)</label>
+                        <input type="number" name="EmailWaitPeriodMs" class="form-control form-control-sm"
+                               value="@DisplayForm.EmailWaitPeriodMs" />
+                    </div>
+
+                    <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Display</h6></div>
+                    <div class="col-12">
+                        <label class="form-label form-label-sm">Display Name</label>
+                        <input name="DisplayName" class="form-control form-control-sm"
+                               placeholder="29) UBA United Bank for Africa >> Credit Emails 1/m"
+                               value="@DisplayForm.DisplayName" />
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end mt-3">
+                    <a href="/bank-config" class="btn btn-secondary btn-sm">Cancel</a>
+                    <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                </div>
+            </form>
+        </div>
     </div>
 }
 
-<!-- Filter bar -->
-<div class="row g-2 mb-3">
+@* ── Delete confirmation ──────────────────────────────────────────────── *@
+@if (Mode == "delete" && DeleteTarget != null)
+{
+    <div class="card mb-4 border-danger shadow-sm">
+        <div class="card-header text-danger">Confirm Delete</div>
+        <div class="card-body">
+            <p>Delete <strong>@DeleteTarget.BankName — @DeleteTarget.FormatterKey</strong> (ID @DeleteTarget.Id)?</p>
+            <p class="text-muted small mb-0">This action cannot be undone.</p>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+            <a href="/bank-config" class="btn btn-secondary btn-sm">Cancel</a>
+            <form method="post" @formname="delete-form" class="d-inline">
+                <AntiforgeryToken />
+                <input type="hidden" name="ConfigId" value="@DeleteTarget.Id" />
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            </form>
+        </div>
+    </div>
+}
+
+@* ── Filter bar ───────────────────────────────────────────────────────── *@
+<form method="get" class="row g-2 mb-3">
     <div class="col-md-4">
-        <input class="form-control form-control-sm"
-               placeholder="Filter by bank, key, branch…"
-               @bind="SearchText"
-               @bind:event="oninput" />
+        <input name="q" class="form-control form-control-sm"
+               placeholder="Filter by bank, key, branch…" value="@Q" />
     </div>
     <div class="col-md-2">
-        <select class="form-select form-select-sm" @bind="FilterOutputType">
+        <select name="type" class="form-select form-select-sm">
             <option value="">All types</option>
             @foreach (var v in Enum.GetValues<StatementOutputType>())
             {
-                <option value="@((int)v)">@v</option>
+                <option value="@((int)v)" selected="@(Type == ((int)v).ToString())">@v</option>
             }
         </select>
     </div>
     <div class="col-md-2">
-        <select class="form-select form-select-sm" @bind="FilterActive">
+        <select name="active" class="form-select form-select-sm">
             <option value="">Active + Inactive</option>
-            <option value="1">Active only</option>
-            <option value="0">Inactive only</option>
+            <option value="1" selected="@(Active == "1")">Active only</option>
+            <option value="0" selected="@(Active == "0")">Inactive only</option>
         </select>
     </div>
     <div class="col-md-2">
-        <button class="btn btn-outline-secondary btn-sm w-100" @onclick="LoadAllAsync">↺ Reload</button>
+        <button type="submit" class="btn btn-outline-secondary btn-sm w-100">↺ Filter</button>
     </div>
     <div class="col-md-2 text-muted text-end align-self-center">
         <small>@Filtered.Count() of @All.Count rows</small>
     </div>
-</div>
+</form>
 
-<!-- Configuration table -->
+@* ── Configuration table ──────────────────────────────────────────────── *@
 <div class="table-responsive" style="max-height:520px;overflow-y:auto">
     <table class="table table-sm table-bordered table-hover align-middle">
         <thead class="table-light sticky-top">
@@ -103,10 +328,10 @@
                         }
                     </td>
                     <td>
-                        <button class="btn btn-outline-primary btn-sm py-0 px-2 me-1"
-                                title="Edit" @onclick="() => OpenEditForm(cfg)">✎</button>
-                        <button class="btn btn-outline-danger btn-sm py-0 px-2"
-                                title="Delete" @onclick="() => ConfirmDelete(cfg)">✕</button>
+                        <a href="/bank-config?mode=edit&id=@cfg.Id"
+                           class="btn btn-outline-primary btn-sm py-0 px-2 me-1" title="Edit">✎</a>
+                        <a href="/bank-config?mode=delete&id=@cfg.Id"
+                           class="btn btn-outline-danger btn-sm py-0 px-2" title="Delete">✕</a>
                     </td>
                 </tr>
             }
@@ -120,371 +345,176 @@
     </table>
 </div>
 
-<!-- ── Create / Edit modal ────────────────────────────────────────────────── -->
-@if (ShowForm)
-{
-    <div class="modal-backdrop-custom" @onclick="CloseForm"></div>
-    <div class="card position-fixed shadow-lg"
-         style="top:60px;left:50%;transform:translateX(-50%);width:min(98vw,780px);z-index:1050;max-height:90vh;overflow-y:auto">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span>@(Form.Id == 0 ? "New Configuration" : $"Edit Configuration #{Form.Id}")</span>
-            <button class="btn-close" @onclick="CloseForm"></button>
-        </div>
-        <div class="card-body">
-            <div class="row g-2">
-
-                <div class="col-12"><h6 class="mb-1 text-muted">Identity</h6></div>
-                <div class="col-md-2">
-                    <label class="form-label form-label-sm">Branch Code</label>
-                    <input type="number" class="form-control form-control-sm" @bind="Form.BranchCode" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label form-label-sm">Bank Code</label>
-                    <input class="form-control form-control-sm" @bind="Form.BankName" placeholder="UBA" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">Bank Full Name</label>
-                    <input class="form-control form-control-sm" @bind="Form.BankFullName" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">Card Product</label>
-                    <input class="form-control form-control-sm" @bind="Form.CardProduct" placeholder="UBACR" />
-                </div>
-
-                <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Output</h6></div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">Output Type</label>
-                    <select class="form-select form-select-sm" @bind="Form.OutputType">
-                        @foreach (var v in Enum.GetValues<StatementOutputType>())
-                        {
-                            <option value="@((int)v)">@v</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">Formatter Key</label>
-                    <input class="form-control form-control-sm" @bind="Form.FormatterKey" placeholder="HTML_UBA" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label form-label-sm">Stmt Suffix</label>
-                    <input class="form-control form-control-sm" @bind="Form.StatementTypeSuffix" placeholder="CR" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label form-label-sm">Sched. Day</label>
-                    <input type="number" min="1" max="31" class="form-control form-control-sm" @bind="Form.ScheduledDay" />
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label form-label-sm">Card Type</label>
-                    <select class="form-select form-select-sm" @bind="Form.CardType">
-                        @foreach (var v in Enum.GetValues<CardType>())
-                        {
-                            <option value="@((int)v)">@v</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label form-label-sm">Statement Type</label>
-                    <select class="form-select form-select-sm" @bind="Form.StatementType">
-                        @foreach (var v in Enum.GetValues<StatementType>())
-                        {
-                            <option value="@((int)v)">@v</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label form-label-sm">Field Separator</label>
-                    <input class="form-control form-control-sm" @bind="Form.FieldSeparator" placeholder="," />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label form-label-sm">Sort Order</label>
-                    <input type="number" class="form-control form-control-sm" @bind="Form.SortOrder" />
-                </div>
-
-                <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Flags</h6></div>
-                <div class="col-md-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="fAppend" @bind="Form.AppendMode" />
-                        <label class="form-check-label" for="fAppend">Append Mode</label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="fCorp" @bind="Form.UseCorporateAccountNumber" />
-                        <label class="form-check-label" for="fCorp">Corporate Account No.</label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="fActive" @bind="Form.IsActive" />
-                        <label class="form-check-label" for="fActive">Active</label>
-                    </div>
-                </div>
-
-                <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Processing Modes</h6></div>
-                <div class="col-12">
-                    <div class="d-flex flex-wrap gap-2">
-                        @foreach (var mode in NonStandardModes)
-                        {
-                            <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input" type="checkbox"
-                                       id="pm_@mode"
-                                       checked="@(((ProcessingMode)Form.ProcessingModes).HasFlag(mode))"
-                                       @onchange="e => ToggleMode(mode, (bool)e.Value)" />
-                                <label class="form-check-label" for="pm_@mode">
-                                    <small>@mode</small>
-                                </label>
-                            </div>
-                        }
-                    </div>
-                </div>
-
-                <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Oracle Conditions</h6></div>
-                <div class="col-12">
-                    <label class="form-label form-label-sm">Reward Contract Condition</label>
-                    <input class="form-control form-control-sm" @bind="Form.RewardContractCondition"
-                           placeholder="'New Reward Contract'" />
-                </div>
-                <div class="col-12">
-                    <label class="form-label form-label-sm">Installment Contract Condition</label>
-                    <input class="form-control form-control-sm" @bind="Form.InstallmentContractCondition" />
-                </div>
-
-                <div class="col-12 mt-2"><h6 class="mb-1 text-muted">PDF (optional)</h6></div>
-                <div class="col-md-6">
-                    <label class="form-label form-label-sm">Report Template Name</label>
-                    <input class="form-control form-control-sm" @bind="Form.ReportTemplateName" />
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label form-label-sm">PDF Password Scheme</label>
-                    <select class="form-select form-select-sm" @bind="Form.PdfPasswordScheme">
-                        <option value="">None</option>
-                        <option value="DOB">DOB (Date of Birth)</option>
-                        <option value="CARD4">CARD4 (Last 4 digits)</option>
-                    </select>
-                </div>
-
-                <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Email / Branding</h6></div>
-                <div class="col-md-6">
-                    <label class="form-label form-label-sm">Email From Address</label>
-                    <input class="form-control form-control-sm" @bind="Form.EmailFromAddress" />
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label form-label-sm">Bank Website URL</label>
-                    <input class="form-control form-control-sm" @bind="Form.BankWebsiteUrl" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">Facebook URL</label>
-                    <input class="form-control form-control-sm" @bind="Form.FacebookUrl" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">LinkedIn URL</label>
-                    <input class="form-control form-control-sm" @bind="Form.LinkedInUrl" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">YouTube URL</label>
-                    <input class="form-control form-control-sm" @bind="Form.YouTubeUrl" />
-                </div>
-
-                <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Pagination &amp; Timing</h6></div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">Max Trans / Page</label>
-                    <input type="number" class="form-control form-control-sm" @bind="Form.MaxTransactionsPerPage" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">Max Trans Last Page</label>
-                    <input type="number" class="form-control form-control-sm" @bind="Form.MaxTransactionsLastPage" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label form-label-sm">Email Wait (ms)</label>
-                    <input type="number" class="form-control form-control-sm" @bind="Form.EmailWaitPeriodMs" />
-                </div>
-
-                <div class="col-12 mt-2"><h6 class="mb-1 text-muted">Display</h6></div>
-                <div class="col-12">
-                    <label class="form-label form-label-sm">Display Name</label>
-                    <input class="form-control form-control-sm" @bind="Form.DisplayName"
-                           placeholder="29) UBA United Bank for Africa >> Credit Emails 1/m" />
-                </div>
-            </div>
-
-            @if (FormError != null)
-            {
-                <div class="alert alert-danger py-1 mt-2">@FormError</div>
-            }
-        </div>
-        <div class="card-footer d-flex gap-2 justify-content-end">
-            <button class="btn btn-secondary btn-sm" @onclick="CloseForm">Cancel</button>
-            <button class="btn btn-primary btn-sm" @onclick="SaveFormAsync">Save</button>
-        </div>
-    </div>
-}
-
-<!-- ── Delete confirmation ────────────────────────────────────────────────── -->
-@if (DeleteTarget != null)
-{
-    <div class="modal-backdrop-custom" @onclick="() => DeleteTarget = null"></div>
-    <div class="card position-fixed shadow-lg"
-         style="top:200px;left:50%;transform:translateX(-50%);width:400px;z-index:1060">
-        <div class="card-header text-danger">Confirm Delete</div>
-        <div class="card-body">
-            <p>Delete <strong>@DeleteTarget.BankName — @DeleteTarget.FormatterKey</strong> (ID @DeleteTarget.Id)?</p>
-            <p class="text-muted small">This action cannot be undone.</p>
-        </div>
-        <div class="card-footer d-flex gap-2 justify-content-end">
-            <button class="btn btn-secondary btn-sm" @onclick="() => DeleteTarget = null">Cancel</button>
-            <button class="btn btn-danger btn-sm" @onclick="ExecuteDeleteAsync">Delete</button>
-        </div>
-    </div>
-}
-
-<style>
-    .modal-backdrop-custom {
-        position: fixed; inset: 0;
-        background: rgba(0,0,0,.35);
-        z-index: 1040;
-    }
-</style>
-
 @code {
-    // ── Data ──────────────────────────────────────────────────────────────────
-    private List<BankProductConfigDto> All             { get; } = new();
-    private string                     SearchText      { get; set; } = string.Empty;
-    private string                     FilterOutputType{ get; set; } = string.Empty;
-    private string                     FilterActive    { get; set; } = string.Empty;
-    private string                     AlertMessage    { get; set; }
-    private bool                       AlertIsError    { get; set; }
+    // ── Query parameters ───────────────────────────────────────────────────────
+    [Parameter][SupplyParameterFromQuery] public string Mode   { get; set; } = string.Empty;
+    [Parameter][SupplyParameterFromQuery] public int    Id     { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string Q      { get; set; } = string.Empty;
+    [Parameter][SupplyParameterFromQuery] public string Type   { get; set; } = string.Empty;
+    [Parameter][SupplyParameterFromQuery] public string Active { get; set; } = string.Empty;
 
-    private IEnumerable<BankProductConfigDto> Filtered =>
-        All.Where(c =>
-        {
-            if (!string.IsNullOrWhiteSpace(SearchText) &&
-                !c.BankName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) &&
-                !c.BankFullName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) &&
-                !c.FormatterKey.Contains(SearchText, StringComparison.OrdinalIgnoreCase) &&
-                !c.BranchCode.ToString().Contains(SearchText))
-                return false;
+    // ── Form models ────────────────────────────────────────────────────────────
+    [SupplyParameterFromForm(FormName = "config-form")]
+    private BankConfigFormModel ConfigForm { get; set; }
 
-            if (!string.IsNullOrWhiteSpace(FilterOutputType) &&
-                c.OutputType != int.Parse(FilterOutputType))
-                return false;
+    [SupplyParameterFromForm(FormName = "delete-form")]
+    private DeleteFormModel DeleteForm { get; set; }
 
-            if (!string.IsNullOrWhiteSpace(FilterActive) &&
-                (c.IsActive ? 1 : 0) != int.Parse(FilterActive))
-                return false;
+    // ── Data ───────────────────────────────────────────────────────────────────
+    private List<BankProductConfigDto> All          { get; } = new();
+    private BankProductConfigDto       DeleteTarget { get; set; }
+    private BankConfigFormModel        DisplayForm  { get; set; } = new();
+    private string                     FormError    { get; set; }
 
-            return true;
-        });
+    private IEnumerable<BankProductConfigDto> Filtered => All.Where(c =>
+    {
+        if (!string.IsNullOrWhiteSpace(Q) &&
+            !c.BankName.Contains(Q, StringComparison.OrdinalIgnoreCase) &&
+            !c.BankFullName.Contains(Q, StringComparison.OrdinalIgnoreCase) &&
+            !c.FormatterKey.Contains(Q, StringComparison.OrdinalIgnoreCase) &&
+            !c.BranchCode.ToString().Contains(Q))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(Type) && c.OutputType != int.Parse(Type))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(Active) && (c.IsActive ? 1 : 0) != int.Parse(Active))
+            return false;
+
+        return true;
+    });
 
     private static readonly ProcessingMode[] NonStandardModes = Enum
         .GetValues<ProcessingMode>()
         .Where(m => m != ProcessingMode.Standard)
         .ToArray();
 
-    protected override async Task OnInitializedAsync() => await LoadAllAsync();
-
-    private async Task LoadAllAsync()
+    protected override async Task OnInitializedAsync()
     {
-        All.Clear();
+        // ── Handle config form POST ──
+        if (ConfigForm != null)
+        {
+            await SaveConfigAsync();
+            if (string.IsNullOrEmpty(FormError))
+            {
+                Nav.NavigateTo("/bank-config", replace: true);
+                return;
+            }
+            // On error: fall through to load data for display
+            DisplayForm = ConfigForm;
+        }
+
+        // ── Handle delete form POST ──
+        if (DeleteForm != null)
+        {
+            try
+            {
+                await BankConfigApi.DeleteAsync(DeleteForm.ConfigId);
+            }
+            catch { /* swallow — user sees the table reload */ }
+            Nav.NavigateTo("/bank-config", replace: true);
+            return;
+        }
+
+        // ── Load all configs for the table ──
         try
         {
             var rows = await BankConfigApi.GetAllAsync();
             All.AddRange(rows);
         }
-        catch (Exception ex)
+        catch { /* table stays empty */ }
+
+        // ── Pre-populate edit form on GET ──
+        if (Mode == "edit" && Id > 0 && ConfigForm == null)
         {
-            ShowAlert($"Failed to load configurations: {ex.Message}", error: true);
+            var cfg = All.FirstOrDefault(c => c.Id == Id);
+            if (cfg != null)
+            {
+                DisplayForm = new BankConfigFormModel
+                {
+                    BranchCode                   = cfg.BranchCode,
+                    BankName                     = cfg.BankName                     ?? string.Empty,
+                    BankFullName                 = cfg.BankFullName                 ?? string.Empty,
+                    CardProduct                  = cfg.CardProduct                  ?? string.Empty,
+                    OutputType                   = cfg.OutputType,
+                    FormatterKey                 = cfg.FormatterKey                 ?? string.Empty,
+                    ProcessingModes              = cfg.ProcessingModes,
+                    CardType                     = cfg.CardType,
+                    StatementType                = cfg.StatementType,
+                    StatementTypeSuffix          = cfg.StatementTypeSuffix          ?? "CR",
+                    RewardContractCondition      = cfg.RewardContractCondition      ?? string.Empty,
+                    InstallmentContractCondition = cfg.InstallmentContractCondition ?? string.Empty,
+                    AppendMode                   = cfg.AppendMode,
+                    UseCorporateAccountNumber    = cfg.UseCorporateAccountNumber,
+                    ReportTemplateName           = cfg.ReportTemplateName           ?? string.Empty,
+                    PdfPasswordScheme            = cfg.PdfPasswordScheme            ?? string.Empty,
+                    EmailFromAddress             = cfg.EmailFromAddress             ?? "cardservices@emp-group.com",
+                    BankWebsiteUrl               = cfg.BankWebsiteUrl               ?? string.Empty,
+                    FacebookUrl                  = cfg.FacebookUrl                  ?? string.Empty,
+                    LinkedInUrl                  = cfg.LinkedInUrl                  ?? string.Empty,
+                    YouTubeUrl                   = cfg.YouTubeUrl                   ?? string.Empty,
+                    MaxTransactionsPerPage       = cfg.MaxTransactionsPerPage,
+                    MaxTransactionsLastPage      = cfg.MaxTransactionsLastPage,
+                    EmailWaitPeriodMs            = cfg.EmailWaitPeriodMs,
+                    FieldSeparator               = cfg.FieldSeparator               ?? ",",
+                    ScheduledDay                 = cfg.ScheduledDay,
+                    DisplayName                  = cfg.DisplayName                  ?? string.Empty,
+                    SortOrder                    = cfg.SortOrder,
+                    IsActive                     = cfg.IsActive,
+                };
+            }
         }
+
+        // ── Load delete target on GET ──
+        if (Mode == "delete" && Id > 0)
+            DeleteTarget = All.FirstOrDefault(c => c.Id == Id);
     }
 
-    // ── Create / Edit form ────────────────────────────────────────────────────
-    private bool                      ShowForm  { get; set; }
-    private SaveBankProductConfigRequest Form    { get; set; } = new();
-    private int                       EditingId { get; set; }
-    private string                    FormError { get; set; }
-
-    private void OpenCreateForm()
+    private async Task SaveConfigAsync()
     {
-        Form      = new SaveBankProductConfigRequest();
-        EditingId = 0;
-        FormError = null;
-        ShowForm  = true;
-    }
+        if (string.IsNullOrWhiteSpace(ConfigForm.BankName))      { FormError = "Bank Code is required.";         return; }
+        if (string.IsNullOrWhiteSpace(ConfigForm.FormatterKey))  { FormError = "Formatter Key is required.";     return; }
+        if (ConfigForm.ScheduledDay < 1 || ConfigForm.ScheduledDay > 31) { FormError = "Scheduled Day must be 1–31."; return; }
 
-    private void OpenEditForm(BankProductConfigDto cfg)
-    {
-        Form = new SaveBankProductConfigRequest
+        var req = new SaveBankProductConfigRequest
         {
-            BranchCode                   = cfg.BranchCode,
-            BankName                     = cfg.BankName,
-            BankFullName                 = cfg.BankFullName,
-            CardProduct                  = cfg.CardProduct,
-            OutputType                   = cfg.OutputType,
-            FormatterKey                 = cfg.FormatterKey,
-            ProcessingModes              = cfg.ProcessingModes,
-            CardType                     = cfg.CardType,
-            StatementType                = cfg.StatementType,
-            StatementTypeSuffix          = cfg.StatementTypeSuffix,
-            RewardContractCondition      = cfg.RewardContractCondition ?? string.Empty,
-            InstallmentContractCondition = cfg.InstallmentContractCondition ?? string.Empty,
-            AppendMode                   = cfg.AppendMode,
-            UseCorporateAccountNumber    = cfg.UseCorporateAccountNumber,
-            ReportTemplateName           = cfg.ReportTemplateName  ?? string.Empty,
-            PdfPasswordScheme            = cfg.PdfPasswordScheme   ?? string.Empty,
-            EmailFromAddress             = cfg.EmailFromAddress     ?? "cardservices@emp-group.com",
-            BankWebsiteUrl               = cfg.BankWebsiteUrl      ?? string.Empty,
-            FacebookUrl                  = cfg.FacebookUrl          ?? string.Empty,
-            LinkedInUrl                  = cfg.LinkedInUrl          ?? string.Empty,
-            YouTubeUrl                   = cfg.YouTubeUrl           ?? string.Empty,
-            MaxTransactionsPerPage       = cfg.MaxTransactionsPerPage,
-            MaxTransactionsLastPage      = cfg.MaxTransactionsLastPage,
-            EmailWaitPeriodMs            = cfg.EmailWaitPeriodMs,
-            FieldSeparator               = cfg.FieldSeparator,
-            ScheduledDay                 = cfg.ScheduledDay,
-            DisplayName                  = cfg.DisplayName ?? string.Empty,
-            SortOrder                    = cfg.SortOrder,
-            IsActive                     = cfg.IsActive,
+            BranchCode                   = ConfigForm.BranchCode,
+            BankName                     = ConfigForm.BankName,
+            BankFullName                 = ConfigForm.BankFullName,
+            CardProduct                  = ConfigForm.CardProduct,
+            OutputType                   = ConfigForm.OutputType,
+            FormatterKey                 = ConfigForm.FormatterKey,
+            ProcessingModes              = (ConfigForm.SelectedModes ?? Array.Empty<long>()).Aggregate(0L, (acc, m) => acc | m),
+            CardType                     = ConfigForm.CardType,
+            StatementType                = ConfigForm.StatementType,
+            StatementTypeSuffix          = ConfigForm.StatementTypeSuffix,
+            RewardContractCondition      = ConfigForm.RewardContractCondition,
+            InstallmentContractCondition = ConfigForm.InstallmentContractCondition,
+            AppendMode                   = ConfigForm.AppendMode,
+            UseCorporateAccountNumber    = ConfigForm.UseCorporateAccountNumber,
+            ReportTemplateName           = ConfigForm.ReportTemplateName,
+            PdfPasswordScheme            = ConfigForm.PdfPasswordScheme,
+            EmailFromAddress             = ConfigForm.EmailFromAddress,
+            BankWebsiteUrl               = ConfigForm.BankWebsiteUrl,
+            FacebookUrl                  = ConfigForm.FacebookUrl,
+            LinkedInUrl                  = ConfigForm.LinkedInUrl,
+            YouTubeUrl                   = ConfigForm.YouTubeUrl,
+            MaxTransactionsPerPage       = ConfigForm.MaxTransactionsPerPage,
+            MaxTransactionsLastPage      = ConfigForm.MaxTransactionsLastPage,
+            EmailWaitPeriodMs            = ConfigForm.EmailWaitPeriodMs,
+            FieldSeparator               = ConfigForm.FieldSeparator,
+            ScheduledDay                 = ConfigForm.ScheduledDay,
+            DisplayName                  = ConfigForm.DisplayName,
+            SortOrder                    = ConfigForm.SortOrder,
+            IsActive                     = ConfigForm.IsActive,
         };
-        EditingId = cfg.Id;
-        FormError = null;
-        ShowForm  = true;
-    }
-
-    private void CloseForm()
-    {
-        ShowForm  = false;
-        FormError = null;
-    }
-
-    private void ToggleMode(ProcessingMode mode, bool on)
-    {
-        var current = (ProcessingMode)Form.ProcessingModes;
-        Form.ProcessingModes = (long)(on ? current | mode : current & ~mode);
-    }
-
-    private async Task SaveFormAsync()
-    {
-        FormError = null;
-
-        if (string.IsNullOrWhiteSpace(Form.BankName))       { FormError = "Bank Code is required."; return; }
-        if (string.IsNullOrWhiteSpace(Form.FormatterKey))   { FormError = "Formatter Key is required."; return; }
-        if (Form.ScheduledDay < 1 || Form.ScheduledDay > 31){ FormError = "Scheduled Day must be 1–31."; return; }
 
         try
         {
-            if (EditingId == 0)
-            {
-                int newId = await BankConfigApi.CreateAsync(Form);
-                ShowAlert($"Configuration #{newId} created.");
-            }
+            if (ConfigForm.EditingId == 0)
+                await BankConfigApi.CreateAsync(req);
             else
-            {
-                await BankConfigApi.UpdateAsync(EditingId, Form);
-                ShowAlert($"Configuration #{EditingId} updated.");
-            }
-
-            CloseForm();
-            await LoadAllAsync();
+                await BankConfigApi.UpdateAsync(ConfigForm.EditingId, req);
         }
         catch (Exception ex)
         {
@@ -492,33 +522,45 @@
         }
     }
 
-    // ── Delete ────────────────────────────────────────────────────────────────
-    private BankProductConfigDto DeleteTarget { get; set; }
+    // ── Form models ────────────────────────────────────────────────────────────
 
-    private void ConfirmDelete(BankProductConfigDto cfg) => DeleteTarget = cfg;
-
-    private async Task ExecuteDeleteAsync()
+    private sealed class BankConfigFormModel
     {
-        if (DeleteTarget == null) return;
-        int id = DeleteTarget.Id;
-        try
-        {
-            await BankConfigApi.DeleteAsync(id);
-            ShowAlert($"Configuration #{id} deleted.");
-            DeleteTarget = null;
-            await LoadAllAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowAlert($"Delete failed: {ex.Message}", error: true);
-            DeleteTarget = null;
-        }
+        public int    EditingId                    { get; set; }
+        public int    BranchCode                   { get; set; }
+        public string BankName                     { get; set; } = string.Empty;
+        public string BankFullName                 { get; set; } = string.Empty;
+        public string CardProduct                  { get; set; } = string.Empty;
+        public int    OutputType                   { get; set; }
+        public string FormatterKey                 { get; set; } = string.Empty;
+        public long   ProcessingModes              { get; set; }
+        public long[] SelectedModes                { get; set; } = Array.Empty<long>();
+        public int    CardType                     { get; set; }
+        public int    StatementType                { get; set; }
+        public string StatementTypeSuffix          { get; set; } = "CR";
+        public string RewardContractCondition      { get; set; } = string.Empty;
+        public string InstallmentContractCondition { get; set; } = string.Empty;
+        public bool   AppendMode                   { get; set; }
+        public bool   UseCorporateAccountNumber    { get; set; }
+        public string ReportTemplateName           { get; set; } = string.Empty;
+        public string PdfPasswordScheme            { get; set; } = string.Empty;
+        public string EmailFromAddress             { get; set; } = "cardservices@emp-group.com";
+        public string BankWebsiteUrl               { get; set; } = string.Empty;
+        public string FacebookUrl                  { get; set; } = string.Empty;
+        public string LinkedInUrl                  { get; set; } = string.Empty;
+        public string YouTubeUrl                   { get; set; } = string.Empty;
+        public int    MaxTransactionsPerPage       { get; set; } = 20;
+        public int    MaxTransactionsLastPage      { get; set; } = 27;
+        public int    EmailWaitPeriodMs            { get; set; } = 7000;
+        public string FieldSeparator               { get; set; } = ",";
+        public int    ScheduledDay                 { get; set; } = 1;
+        public string DisplayName                  { get; set; } = string.Empty;
+        public int    SortOrder                    { get; set; }
+        public bool   IsActive                     { get; set; } = true;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    private void ShowAlert(string msg, bool error = false)
+    private sealed class DeleteFormModel
     {
-        AlertMessage = msg;
-        AlertIsError = error;
+        public int ConfigId { get; set; }
     }
 }

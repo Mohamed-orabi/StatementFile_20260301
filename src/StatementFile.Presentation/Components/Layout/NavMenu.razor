@@ -1,7 +1,12 @@
-@inject AppState AppState
-@inject NavigationManager Nav
+@inject IHttpContextAccessor HttpContextAccessor
 
-@if (AppState.IsLoggedIn)
+@{
+    var user      = HttpContextAccessor.HttpContext?.User;
+    bool loggedIn = user?.Identity?.IsAuthenticated == true;
+    string userName = loggedIn ? (user.Identity.Name ?? string.Empty) : string.Empty;
+}
+
+@if (loggedIn)
 {
     <NavLink class="nav-link text-white-50 d-block mb-1 ps-1"
              href="/"
@@ -24,11 +29,12 @@
 
     <hr class="border-secondary mt-3 mb-2" />
 
-    <small class="text-secondary d-block mb-2">@AppState.UserName</small>
+    <small class="text-secondary d-block mb-2">@userName</small>
 
-    <button class="btn btn-outline-light btn-sm w-100" @onclick="Logout">
-        Logout
-    </button>
+    <form method="post" action="/logout">
+        <AntiforgeryToken />
+        <button type="submit" class="btn btn-outline-light btn-sm w-100">Logout</button>
+    </form>
 }
 else
 {
@@ -37,13 +43,4 @@ else
              ActiveClass="text-white fw-semibold">
         Login
     </NavLink>
-}
-
-@code {
-    private void Logout()
-    {
-        AppState.IsLoggedIn = false;
-        AppState.UserName   = string.Empty;
-        Nav.NavigateTo("/login", forceLoad: true);
-    }
 }

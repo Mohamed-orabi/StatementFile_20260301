@@ -1,16 +1,9 @@
 @page "/merchant"
-@rendermode InteractiveServer
+@attribute [Authorize]
 @inject IMerchantStatementApiClient MerchantApi
-@inject AppState AppState
-@inject NavigationManager Nav
+@inject IHttpContextAccessor HttpContextAccessor
 
 <PageTitle>Merchant Statement — StatementFile</PageTitle>
-
-@if (!AppState.IsLoggedIn)
-{
-    Nav.NavigateTo("/login", replace: true);
-    return;
-}
 
 <h4 class="mb-3">Merchant Statement</h4>
 
@@ -20,42 +13,6 @@
             <div class="card-header">Process Merchant XML</div>
             <div class="card-body">
 
-                <div class="mb-3">
-                    <label class="form-label">Bank Full Name</label>
-                    <input class="form-control" @bind="BankFullName"
-                           placeholder="e.g. United Bank for Africa" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Bank Name (code)</label>
-                    <input class="form-control" @bind="BankName"
-                           placeholder="e.g. UBA" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Bank Code</label>
-                    <input class="form-control" @bind="BankCode"
-                           placeholder="e.g. UBA01" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Processing Date</label>
-                    <input type="date" class="form-control"
-                           @bind="ProcessingDate"
-                           @bind:format="yyyy-MM-dd" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Merchant XML File</label>
-                    <InputFile class="form-control"
-                               OnChange="OnFileSelected"
-                               accept=".xml" />
-                    @if (UploadedFileName != null)
-                    {
-                        <small class="text-muted">@UploadedFileName (@FileSizeKb KB)</small>
-                    }
-                </div>
-
                 @if (!string.IsNullOrEmpty(ResultMessage))
                 {
                     <div class="alert @(ResultIsError ? "alert-danger" : "alert-success") py-2">
@@ -63,78 +20,111 @@
                     </div>
                 }
 
-                <button class="btn btn-primary w-100"
-                        @onclick="Process"
-                        disabled="@(Busy || UploadedBytes == null || string.IsNullOrWhiteSpace(BankName))">
-                    @(Busy ? "Processing…" : "Process Merchant Statement")
-                </button>
+                <form method="post" enctype="multipart/form-data" @formname="merchant">
+                    <AntiforgeryToken />
+
+                    <div class="mb-3">
+                        <label class="form-label">Bank Full Name</label>
+                        <input name="BankFullName" class="form-control"
+                               placeholder="e.g. United Bank for Africa"
+                               value="@(FormData?.BankFullName ?? string.Empty)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Bank Name (code)</label>
+                        <input name="BankName" class="form-control"
+                               placeholder="e.g. UBA"
+                               value="@(FormData?.BankName ?? string.Empty)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Bank Code</label>
+                        <input name="BankCode" class="form-control"
+                               placeholder="e.g. UBA01"
+                               value="@(FormData?.BankCode ?? string.Empty)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Processing Date</label>
+                        <input type="date" name="ProcessingDate" class="form-control"
+                               value="@(FormData?.ProcessingDate ?? DateTime.Today.ToString("yyyy-MM-dd"))" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Merchant XML File</label>
+                        <input type="file" name="XmlFile" class="form-control" accept=".xml" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Process Merchant Statement</button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
 @code {
-    private string   BankFullName     { get; set; } = string.Empty;
-    private string   BankName         { get; set; } = string.Empty;
-    private string   BankCode         { get; set; } = string.Empty;
-    private DateTime ProcessingDate   { get; set; } = DateTime.Today;
+    [SupplyParameterFromForm(FormName = "merchant")]
+    private MerchantFormModel FormData { get; set; }
 
-    private byte[]   UploadedBytes    { get; set; }
-    private string   UploadedFileName { get; set; }
-    private long     FileSizeKb       => UploadedBytes == null ? 0 : UploadedBytes.Length / 1024;
-
-    private string   ResultMessage    { get; set; } = string.Empty;
-    private bool     ResultIsError    { get; set; }
-    private bool     Busy             { get; set; }
+    private string ResultMessage { get; set; } = string.Empty;
+    private bool   ResultIsError { get; set; }
 
     private const long MaxFileBytes = 50 * 1024 * 1024; // 50 MB
 
-    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    protected override async Task OnInitializedAsync()
     {
-        var file = e.File;
-        if (file.Size > MaxFileBytes)
+        if (FormData == null) return;
+
+        var ctx     = HttpContextAccessor.HttpContext;
+        var xmlFile = ctx?.Request.Form.Files["XmlFile"];
+
+        if (xmlFile == null || xmlFile.Length == 0)
         {
-            ResultIsError   = true;
-            ResultMessage   = $"File is too large (max {MaxFileBytes / 1024 / 1024} MB).";
+            ResultIsError = true;
+            ResultMessage = "Please select an XML file.";
             return;
         }
 
-        using var ms = new MemoryStream();
-        await file.OpenReadStream(MaxFileBytes).CopyToAsync(ms);
-        UploadedBytes    = ms.ToArray();
-        UploadedFileName = file.Name;
-        ResultMessage    = string.Empty;
-    }
-
-    private async Task Process()
-    {
-        if (UploadedBytes == null) return;
-
-        Busy          = true;
-        ResultMessage = string.Empty;
+        if (xmlFile.Length > MaxFileBytes)
+        {
+            ResultIsError = true;
+            ResultMessage = $"File is too large (max {MaxFileBytes / 1024 / 1024} MB).";
+            return;
+        }
 
         try
         {
+            byte[] bytes;
+            using (var ms = new MemoryStream())
+            {
+                await xmlFile.CopyToAsync(ms);
+                bytes = ms.ToArray();
+            }
+
             var result = await MerchantApi.ProcessAsync(new MerchantProcessRequest
             {
-                BankFullName     = BankFullName,
-                BankName         = BankName,
-                BankCode         = BankCode,
-                ProcessingDate   = ProcessingDate,
-                XmlContentBase64 = Convert.ToBase64String(UploadedBytes),
+                BankFullName     = FormData.BankFullName   ?? string.Empty,
+                BankName         = FormData.BankName       ?? string.Empty,
+                BankCode         = FormData.BankCode       ?? string.Empty,
+                ProcessingDate   = DateTime.TryParse(FormData.ProcessingDate, out var d) ? d : DateTime.Today,
+                XmlContentBase64 = Convert.ToBase64String(bytes),
             });
 
             ResultIsError = !result.Success;
-            ResultMessage = result.Message;
+            ResultMessage = result.Message ?? (result.Success ? "Processed successfully." : "Processing failed.");
         }
         catch (Exception ex)
         {
             ResultIsError = true;
             ResultMessage = $"Unexpected error: {ex.Message}";
         }
-        finally
-        {
-            Busy = false;
-        }
+    }
+
+    private sealed class MerchantFormModel
+    {
+        public string BankFullName   { get; set; } = string.Empty;
+        public string BankName       { get; set; } = string.Empty;
+        public string BankCode       { get; set; } = string.Empty;
+        public string ProcessingDate { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
     }
 }
