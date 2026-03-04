@@ -1,0 +1,345 @@
+@page "/"
+@rendermode InteractiveServer
+@inject StatementApiClient Api
+@inject AppState AppState
+@inject NavigationManager Nav
+@using StatementFile.Application.DTOs
+@using StatementFile.Presentation.Services
+
+<PageTitle>Statement Generation — StatementFile</PageTitle>
+
+@if (!AppState.IsLoggedIn)
+{
+    Nav.NavigateTo("/login", replace: true);
+    return;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Statement Generation</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="ReloadCatalog">
+            ↺ Reload from DB
+        </button>
+        <a href="/bank-config" class="btn btn-outline-primary btn-sm">
+            ⚙ Bank Configuration
+        </a>
+    </div>
+</div>
+
+@if (LoadError != null)
+{
+    <div class="alert alert-danger py-2">@LoadError</div>
+}
+
+<div class="row g-4">
+
+    <!-- ── Left: Run queue ────────────────────────────────────────────────────── -->
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Products to Process</span>
+                <small class="text-muted">@SelectedCount selected</small>
+            </div>
+            <div class="card-body p-0" style="max-height:450px;overflow-y:auto">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th style="width:36px">
+                                <input type="checkbox"
+                                       class="form-check-input"
+                                       @onchange="ToggleAll"
+                                       checked="@AllSelected" />
+                            </th>
+                            <th>Bank / Product</th>
+                            <th>Formatter</th>
+                            <th>Statement Date</th>
+                            <th style="width:36px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Products)
+                        {
+                            <tr class="@(p.Selected ? "table-primary" : "")">
+                                <td>
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           @bind="p.Selected" />
+                                </td>
+                                <td>
+                                    <strong>@p.BankName</strong>
+                                    <small class="text-muted ms-1">@p.StatementTypeSuffix · Branch @p.BranchCode</small>
+                                    <br />
+                                    <small class="text-muted">@p.BankFullName · @p.CardProduct</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@p.OutputType</span>
+                                    <br /><small class="text-muted" style="font-size:10px">@p.FormatterKey</small>
+                                </td>
+                                <td style="min-width:130px">
+                                    <input type="date"
+                                           class="form-control form-control-sm"
+                                           value="@p.StatementDate.ToString("yyyy-MM-dd")"
+                                           @onchange="e => p.StatementDate = DateTime.Parse(e.Value.ToString())" />
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline-danger btn-sm"
+                                            title="Remove"
+                                            @onclick="() => Products.Remove(p)">
+                                        &times;
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                        @if (Products.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    No products in queue. Add from the catalogue on the right.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Right: Catalogue + actions ───────────────────────────────────────── -->
+    <div class="col-lg-5">
+
+        <!-- Product catalogue (loaded from API) -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Available Products</span>
+                <small class="text-muted">@Catalog.Count entries</small>
+            </div>
+            <div class="card-body p-2">
+                <!-- Search filter -->
+                <input class="form-control form-control-sm mb-2"
+                       placeholder="Filter by bank, formatter, branch…"
+                       @bind="SearchText"
+                       @bind:event="oninput" />
+
+                <!-- Default statement date applied when adding -->
+                <div class="input-group input-group-sm mb-2">
+                    <span class="input-group-text">Default Date</span>
+                    <input type="date"
+                           class="form-control"
+                           @bind="DefaultStatementDate"
+                           @bind:format="yyyy-MM-dd" />
+                </div>
+
+                <!-- Filtered product list -->
+                <div style="max-height:280px;overflow-y:auto">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <tbody>
+                            @foreach (var cfg in FilteredCatalog)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@cfg.BankName</strong>
+                                        <small class="text-muted ms-1">@cfg.StatementTypeSuffix</small>
+                                        <br />
+                                        <small class="text-muted" style="font-size:10px">@cfg.FormatterKey · Branch @cfg.BranchCode</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-outline-primary btn-sm py-0 px-2"
+                                                @onclick="() => AddFromCatalog(cfg)"
+                                                title="Add to queue">
+                                            +
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!FilteredCatalog.Any())
+                            {
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-3">
+                                        @(Catalog.Count == 0 ? "No products found." : "No matches.")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generation controls -->
+        <div class="d-flex gap-2 mb-3">
+            <button class="btn btn-success flex-fill"
+                    @onclick="RunGeneration"
+                    disabled="@(IsRunning || SelectedCount == 0)">
+                @(IsRunning ? "Running…" : $"Generate ({SelectedCount})")
+            </button>
+            <button class="btn btn-outline-secondary"
+                    @onclick="CancelGeneration"
+                    disabled="@(!IsRunning)">
+                Cancel
+            </button>
+        </div>
+
+        <!-- Progress + log -->
+        @if (IsRunning || StatusLog.Count > 0)
+        {
+            <div class="progress mb-2" style="height:18px">
+                <div class="progress-bar bg-success progress-bar-striped @(IsRunning ? "progress-bar-animated" : "")"
+                     style="width:@ProgressPct%">
+                    @ProgressPct%
+                </div>
+            </div>
+            <div class="border rounded p-2 bg-light"
+                 style="max-height:200px;overflow-y:auto;font-size:12px;font-family:monospace">
+                @foreach (var entry in StatusLog)
+                {
+                    <div class="@(entry.IsError ? "text-danger" : "")">
+                        <span class="text-muted">[@entry.Time.ToString("HH:mm:ss")]</span>
+                        @entry.Text
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    // ── Catalogue (loaded from API) ────────────────────────────────────────────
+    private List<BankConfigDto> Catalog             { get; } = new();
+    private string              SearchText          { get; set; } = string.Empty;
+    private DateTime            DefaultStatementDate{ get; set; } = DateTime.Today;
+    private string              LoadError           { get; set; }
+
+    private IEnumerable<BankConfigDto> FilteredCatalog =>
+        string.IsNullOrWhiteSpace(SearchText)
+            ? Catalog
+            : Catalog.Where(c =>
+                c.BankName.Contains(SearchText, StringComparison.OrdinalIgnoreCase)     ||
+                c.BankFullName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                c.FormatterKey.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                c.BranchCode.ToString().Contains(SearchText)                            ||
+                c.StatementTypeSuffix.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync() => await LoadCatalogAsync();
+
+    private async Task LoadCatalogAsync()
+    {
+        Catalog.Clear();
+        LoadError = null;
+        try
+        {
+            var active = await Api.GetActiveBankConfigsAsync();
+            Catalog.AddRange(active);
+        }
+        catch (Exception ex)
+        {
+            LoadError = $"Could not load bank configurations: {ex.Message}";
+        }
+    }
+
+    private async Task ReloadCatalog()
+    {
+        await LoadCatalogAsync();
+        StateHasChanged();
+    }
+
+    // ── Run queue ─────────────────────────────────────────────────────────────
+    private List<ProductEntry> Products { get; } = new();
+
+    private int  SelectedCount => Products.Count(p => p.Selected);
+    private bool AllSelected   => Products.Count > 0 && Products.All(p => p.Selected);
+
+    private void AddFromCatalog(BankConfigDto cfg)
+    {
+        bool alreadyQueued = Products.Any(p =>
+            p.BranchCode    == cfg.BranchCode   &&
+            p.FormatterKey  == cfg.FormatterKey  &&
+            p.CardProduct   == cfg.CardProduct   &&
+            p.StatementDate == DefaultStatementDate);
+
+        if (alreadyQueued) return;
+
+        Products.Add(new ProductEntry
+        {
+            Selected                = true,
+            BankName                = cfg.BankName,
+            BankFullName            = cfg.BankFullName,
+            BranchCode              = cfg.BranchCode,
+            CardProduct             = cfg.CardProduct,
+            OutputType              = cfg.OutputType,
+            FormatterKey            = cfg.FormatterKey,
+            StatementTypeSuffix     = cfg.StatementTypeSuffix,
+            ProcessingModes         = cfg.ProcessingModes,
+            StatementDate           = DefaultStatementDate,
+            EmailFromAddress        = cfg.EmailFromAddress ?? "cardservices@emp-group.com",
+            RewardContractCondition = cfg.RewardContractCondition ?? "'New Reward Contract'",
+        });
+    }
+
+    private void ToggleAll(ChangeEventArgs e)
+    {
+        bool check = (bool)e.Value;
+        foreach (var p in Products) p.Selected = check;
+    }
+
+    // ── Generation ─────────────────────────────────────────────────────────────
+    private bool           IsRunning   { get; set; }
+    private int            ProgressPct { get; set; }
+    private List<LogEntry> StatusLog   { get; } = new();
+    private CancellationTokenSource _cts;
+
+    private async Task RunGeneration()
+    {
+        _cts        = new CancellationTokenSource();
+        IsRunning   = true;
+        ProgressPct = 0;
+        StatusLog.Clear();
+
+        var selected = Products.Where(p => p.Selected).ToList();
+        int total    = selected.Count;
+        int done     = 0;
+
+        try
+        {
+            foreach (var product in selected)
+            {
+                if (_cts.Token.IsCancellationRequested) break;
+
+                Log($"▶ {product.BankName} / {product.CardProduct}");
+
+                var req    = product.BuildApiRequest();
+                var result = await Api.GenerateStatementAsync(req);
+
+                if (result.Success)
+                    Log($"  ✔ {result.FilesGenerated} file(s) → {result.OutputDirectory}");
+                else
+                    LogError($"  ✘ {result.Error}");
+
+                done++;
+                ProgressPct = (int)Math.Round(done * 100.0 / total);
+                await InvokeAsync(StateHasChanged);
+            }
+
+            Log(_cts.Token.IsCancellationRequested ? "Cancelled." : "Done.");
+        }
+        finally
+        {
+            IsRunning = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CancelGeneration() => _cts?.Cancel();
+
+    private void Log(string text) =>
+        StatusLog.Add(new LogEntry { Text = text, Time = DateTime.Now });
+
+    private void LogError(string text) =>
+        StatusLog.Add(new LogEntry { Text = text, Time = DateTime.Now, IsError = true });
+
+    private sealed class LogEntry
+    {
+        public string   Text    { get; init; }
+        public DateTime Time    { get; init; }
+        public bool     IsError { get; init; }
+    }
+}

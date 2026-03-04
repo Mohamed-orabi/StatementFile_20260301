@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>StatementFile</AssemblyName>
+    <RootNamespace>StatementFile.Presentation</RootNamespace>
+    <Nullable>disable</Nullable>
+    <LangVersion>10</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Presentation depends on Domain (for enums shared with API response DTOs)
+      and Application (for BankConfigDto, GenerateStatementApiRequest, etc.).
+      Infrastructure is intentionally NOT referenced here - all database/email/FTP
+      work is handled by StatementFile.Api and reached via HTTP.
+    -->
+    <ProjectReference Include="..\StatementFile.Domain\StatementFile.Domain.csproj" />
+    <ProjectReference Include="..\StatementFile.Application\StatementFile.Application.csproj" />
+  </ItemGroup>
+
+</Project>

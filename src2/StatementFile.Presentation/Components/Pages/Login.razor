@@ -1,0 +1,85 @@
+@page "/login"
+@rendermode InteractiveServer
+@inject StatementApiClient Api
+@inject AppState AppState
+@inject NavigationManager Nav
+@using StatementFile.Presentation.Services
+
+<PageTitle>Login — StatementFile</PageTitle>
+
+<div class="row justify-content-center mt-5">
+    <div class="col-sm-8 col-md-5 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">StatementFile — Login</h5>
+            </div>
+            <div class="card-body">
+                <EditForm Model="Model" OnValidSubmit="DoLogin">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <InputText class="form-control"
+                                   @bind-Value="Model.UserName"
+                                   placeholder="Oracle schema user" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <InputText type="password"
+                                   class="form-control"
+                                   @bind-Value="Model.Password" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger py-2">@ErrorMessage</div>
+                    }
+
+                    <button type="submit" class="btn btn-primary w-100" disabled="@Busy">
+                        @(Busy ? "Connecting…" : "Login")
+                    </button>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel Model        { get; } = new();
+    private string     ErrorMessage { get; set; } = string.Empty;
+    private bool       Busy         { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (AppState.IsLoggedIn)
+            Nav.NavigateTo("/", replace: true);
+    }
+
+    private async Task DoLogin()
+    {
+        Busy         = true;
+        ErrorMessage = string.Empty;
+
+        var (success, error) = await Api.ValidateConnectionAsync();
+
+        if (success)
+        {
+            AppState.IsLoggedIn = true;
+            AppState.UserName   = Model.UserName;
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            ErrorMessage = $"Login failed: {error}";
+        }
+
+        Busy = false;
+    }
+
+    private sealed class LoginModel
+    {
+        public string UserName { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}
