@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>StatementFile.Api</AssemblyName>
+    <RootNamespace>StatementFile.Api</RootNamespace>
+    <Nullable>disable</Nullable>
+    <LangVersion>10</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StatementFile.Domain\StatementFile.Domain.csproj" />
+    <ProjectReference Include="..\StatementFile.Application\StatementFile.Application.csproj" />
+    <ProjectReference Include="..\StatementFile.Infrastructure\StatementFile.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Swagger / OpenAPI documentation -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+
+    <!--
+      System.Configuration.ConfigurationManager allows AppConfigurationService
+      to read App.config (deployed as StatementFile.Api.dll.config) on .NET 8.
+    -->
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- App.config is deployed as StatementFile.Api.dll.config for ConfigurationManager -->
+    <None Update="App.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

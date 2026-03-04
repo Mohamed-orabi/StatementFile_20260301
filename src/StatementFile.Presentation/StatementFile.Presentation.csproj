@@ -9,24 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!--
+      Presentation depends on Domain (for enums shared with API response DTOs)
+      and Application (for BankConfigDto, GenerateStatementApiRequest, etc.).
+      Infrastructure is intentionally NOT referenced here - all database/email/FTP
+      work is handled by StatementFile.Api and reached via HTTP.
+    -->
     <ProjectReference Include="..\StatementFile.Domain\StatementFile.Domain.csproj" />
     <ProjectReference Include="..\StatementFile.Application\StatementFile.Application.csproj" />
-    <ProjectReference Include="..\StatementFile.Infrastructure\StatementFile.Infrastructure.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!--
-      System.Configuration.ConfigurationManager allows AppConfigurationService
-      to read the App.config (deployed as StatementFile.dll.config) on .NET 8.
-    -->
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- App.config is deployed as StatementFile.dll.config for ConfigurationManager -->
-    <None Update="App.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>
