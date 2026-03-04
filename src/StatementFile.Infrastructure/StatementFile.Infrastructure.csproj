@@ -14,8 +14,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Oracle ODP.NET Managed Driver (.NET Core / .NET 8) -->
-    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.6.0" />
+    <!-- EF Core SQL Server provider -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
+    <!-- EF Core design-time tools (migrations, scaffolding) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
 
     <!-- JSON configuration files -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

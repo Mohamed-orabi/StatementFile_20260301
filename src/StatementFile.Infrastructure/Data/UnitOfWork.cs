@@ -1,5 +1,5 @@
 using System;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using StatementFile.Application.Interfaces;
 using StatementFile.Domain.Interfaces;
 using StatementFile.Domain.Interfaces.Repositories;
@@ -8,15 +8,15 @@ using StatementFile.Infrastructure.Data.Repositories;
 namespace StatementFile.Infrastructure.Data
 {
     /// <summary>
-    /// Oracle-backed implementation of <see cref="IUnitOfWork"/>.
-    /// Shares a single OracleConnection (and optional transaction) across all
+    /// SQL Server–backed implementation of <see cref="IUnitOfWork"/>.
+    /// Shares a single SqlConnection (and optional transaction) across all
     /// repositories created in this scope, then disposes the connection on Dispose().
     /// </summary>
     public sealed class UnitOfWork : IUnitOfWork
     {
-        private readonly OracleConnection      _conn;
-        private          OracleTransaction     _transaction;
-        private          bool                  _disposed;
+        private readonly SqlConnection      _conn;
+        private          SqlTransaction     _transaction;
+        private          bool               _disposed;
 
         private IStatementRepository _statementRepo;
         private IBankRepository      _bankRepo;
@@ -24,7 +24,7 @@ namespace StatementFile.Infrastructure.Data
         private readonly IConfigurationService _config;
         private readonly SessionContext        _session;
 
-        public UnitOfWork(OracleConnectionFactory factory, IConfigurationService config, SessionContext session)
+        public UnitOfWork(SqlConnectionFactory factory, IConfigurationService config, SessionContext session)
         {
             _config  = config   ?? throw new ArgumentNullException(nameof(config));
             _session = session  ?? throw new ArgumentNullException(nameof(session));

@@ -87,12 +87,13 @@ namespace StatementFile.Infrastructure.Configuration
         public string GetSmtpServer()
             => ConfigurationManager.AppSettings["SmtpServer"] ?? "localhost";
 
-        public string GetOracleConnectionString()
+        public string GetSqlConnectionString()
         {
-            // Mirrors the legacy clsDbCon.sConOracle pattern
-            string server = ConfigurationManager.AppSettings["ServerName"] ?? string.Empty;
-            string schema = ConfigurationManager.AppSettings["MainSchema"]  ?? string.Empty;
-            return $"Data Source={server};User Id={schema};Password=;";
+            string server   = ConfigurationManager.AppSettings["ServerName"]   ?? string.Empty;
+            string database = ConfigurationManager.AppSettings["DatabaseName"] ?? string.Empty;
+            string user     = ConfigurationManager.AppSettings["SqlUser"]      ?? string.Empty;
+            string password = ConfigurationManager.AppSettings["SqlPassword"]  ?? string.Empty;
+            return $"Server={server};Database={database};User Id={user};Password={password};TrustServerCertificate=True;";
         }
 
         public string GetMainSchema()

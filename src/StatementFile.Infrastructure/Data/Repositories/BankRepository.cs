@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using StatementFile.Application.Interfaces;
 using StatementFile.Domain.Entities;
 using StatementFile.Domain.Interfaces.Repositories;
@@ -10,10 +10,10 @@ namespace StatementFile.Infrastructure.Data.Repositories
 {
     public sealed class BankRepository : IBankRepository
     {
-        private readonly OracleConnection      _conn;
+        private readonly SqlConnection         _conn;
         private readonly IConfigurationService _config;
 
-        public BankRepository(OracleConnection conn, IConfigurationService config)
+        public BankRepository(SqlConnection conn, IConfigurationService config)
         {
             _conn   = conn   ?? throw new ArgumentNullException(nameof(conn));
             _config = config ?? throw new ArgumentNullException(nameof(config));
@@ -22,11 +22,11 @@ namespace StatementFile.Infrastructure.Data.Repositories
         public Bank GetByBranchCode(int branchCode)
         {
             string schema = _config.GetMainSchema();
-            string sql    = $"SELECT branch, branchname, branchpart, ident FROM {schema}TBRANCH WHERE branch = :code";
+            string sql    = $"SELECT branch, branchname, branchpart, ident FROM {schema}TBRANCH WHERE branch = @code";
 
-            using (var cmd = new OracleCommand(sql, _conn))
+            using (var cmd = new SqlCommand(sql, _conn))
             {
-                cmd.Parameters.Add(new OracleParameter(":code", OracleDbType.Int32) { Value = branchCode });
+                cmd.Parameters.Add(new SqlParameter("@code", SqlDbType.Int) { Value = branchCode });
                 using (var reader = cmd.ExecuteReader())
                 {
                     if (reader.Read())
@@ -42,7 +42,7 @@ namespace StatementFile.Infrastructure.Data.Repositories
             string sql    = $"SELECT branch, branchname, branchpart, ident FROM {schema}TBRANCH ORDER BY branch";
             var    result = new List<Bank>();
 
-            using (var cmd = new OracleCommand(sql, _conn))
+            using (var cmd = new SqlCommand(sql, _conn))
             using (var reader = cmd.ExecuteReader())
             {
                 while (reader.Read())

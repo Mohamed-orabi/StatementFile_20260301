@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using StatementFile.Application.Interfaces;
 using StatementFile.Application.UseCases.BulkProcessing;
 using StatementFile.Application.UseCases.MerchantOnboarding;
@@ -41,7 +42,12 @@ namespace StatementFile.Infrastructure.Configuration
             // ── Singletons ─────────────────────────────────────────────────────────
             var configService  = new AppConfigurationService();
             var sessionContext = new SessionContext();   // StatementDbSchema defaults to "A4M."
-            var connFactory    = new OracleConnectionFactory(configService);
+            var connFactory    = new SqlConnectionFactory(configService);
+
+            // ── EF Core DbContext options (used by BankProductConfigRepository) ────
+            var dbContextOptions = new DbContextOptionsBuilder<AppDbContext>()
+                .UseSqlServer(configService.GetSqlConnectionString())
+                .Options;
 
             // ── Services ───────────────────────────────────────────────────────────
             var emailService      = new EmailService(configService);
@@ -143,7 +149,7 @@ namespace StatementFile.Infrastructure.Configuration
 
             // ── Repositories ───────────────────────────────────────────────────────
             var merchantRepo       = new MerchantStatementRepository();
-            var bankProductCfgRepo = new BankProductConfigRepository(connFactory);
+            var bankProductCfgRepo = new BankProductConfigRepository(dbContextOptions);
 
             // ── Use Case Handlers ──────────────────────────────────────────────────
             var merchantHandler = new ProcessMerchantStatementHandler(
@@ -180,7 +186,7 @@ namespace StatementFile.Infrastructure.Configuration
     {
         public AppConfigurationService         ConfigService      { get; }
         public SessionContext                  Session            { get; }
-        public OracleConnectionFactory         ConnFactory        { get; }
+        public SqlConnectionFactory            ConnFactory        { get; }
         public IEmailService                   EmailService       { get; }
         public IFtpService                     FtpService         { get; }
         public IReportService                  ReportService      { get; }
@@ -200,7 +206,7 @@ namespace StatementFile.Infrastructure.Configuration
         internal CompositionRoot(
             AppConfigurationService         configService,
             SessionContext                  sessionContext,
-            OracleConnectionFactory         connFactory,
+            SqlConnectionFactory            connFactory,
             IEmailService                   emailService,
             IFtpService                     ftpService,
             IReportService                  reportService,
@@ -238,7 +244,7 @@ namespace StatementFile.Infrastructure.Configuration
         }
 
         /// <summary>
-        /// Creates a scoped UnitOfWork (one Oracle connection per statement run).
+        /// Creates a scoped UnitOfWork (one SQL Server connection per statement run).
         /// Caller is responsible for disposing it.
         /// </summary>
         public IUnitOfWork CreateUnitOfWork()

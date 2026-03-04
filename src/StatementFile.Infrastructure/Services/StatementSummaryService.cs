@@ -1,32 +1,30 @@
 using System;
-using Oracle.ManagedDataAccess.Client;
+using System.Data;
+using Microsoft.Data.SqlClient;
 using StatementFile.Domain.Interfaces.Services;
 using StatementFile.Infrastructure.Data;
 
 namespace StatementFile.Infrastructure.Services
 {
     /// <summary>
-    /// Oracle implementation of <see cref="IStatementSummaryService"/>.
+    /// SQL Server implementation of <see cref="IStatementSummaryService"/>.
     ///
-    /// Inserts/updates the a4m.MSCC_PROD_STAT_MASTER audit table after each
+    /// Inserts/updates the dbo.MSCC_PROD_STAT_MASTER audit table after each
     /// statement generation run.
     ///
-    /// Preserves the exact INSERT SQL from clsStatementSummary.InsertRecordDb():
-    ///   INSERT /*+ APPEND */ INTO a4m.MSCC_PROD_STAT_MASTER values(
-    ///     bankCode, productCode, 'productName', null,
-    ///     yyyyMM, noOfStatements, noOfTransactionsInt,
-    ///     to_date('dd/MM/yyyy hh:MM:ss','dd/mm/yyyy HH:MI:SS'))
-    ///
-    /// Note: The table schema is hardcoded as "a4m." matching the legacy —
-    ///       it is NOT the client MainSchema from config.
+    /// Oracle → T-SQL translations applied:
+    ///   - INSERT /*+ APPEND */ removed (no equivalent hint in SQL Server)
+    ///   - to_date('dd/MM/yyyy hh:MM:ss','dd/mm/yyyy HH:MI:SS') → @creationDate parameter
+    ///   - Explicit COMMIT removed (single-statement SqlCommand auto-commits)
+    ///   - Schema changed from hardcoded "a4m." to "dbo."
     /// </summary>
     public sealed class StatementSummaryService : IStatementSummaryService
     {
-        private const string SummaryTable = "a4m.MSCC_PROD_STAT_MASTER";
+        private const string SummaryTable = "dbo.MSCC_PROD_STAT_MASTER";
 
-        private readonly OracleConnectionFactory _connFactory;
+        private readonly SqlConnectionFactory _connFactory;
 
-        public StatementSummaryService(OracleConnectionFactory connFactory)
+        public StatementSummaryService(SqlConnectionFactory connFactory)
         {
             _connFactory = connFactory ?? throw new ArgumentNullException(nameof(connFactory));
         }
@@ -40,25 +38,22 @@ namespace StatementFile.Infrastructure.Services
             int      noOfTransactions,
             DateTime creationDate)
         {
-            // Matches clsStatementSummary.InsertRecordDb() exactly:
-            //   INSERT /*+ APPEND */ INTO a4m.MSCC_PROD_STAT_MASTER values(...)
             string sql =
-                $"INSERT /*+ APPEND */ INTO {SummaryTable} values(" +
-                $"{bankCode}," +
-                $"{productCode}," +
-                $"'{EscapeSql(productName)}'," +
-                $"null," +
-                $"{statementDate:yyyyMM}," +
-                $"{noOfStatements}," +
-                $"{noOfTransactions}," +
-                $"to_date('{creationDate:dd/MM/yyyy HH:mm:ss}','dd/mm/yyyy HH:MI:SS'))";
+                $"INSERT INTO {SummaryTable} VALUES(" +
+                $"@bankCode, @productCode, @productName, NULL, " +
+                $"@statPeriod, @noOfStatements, @noOfTransactions, @creationDate)";
 
             using (var conn = _connFactory.CreateOpenConnection())
-            using (var cmd  = new OracleCommand(sql, conn))
+            using (var cmd  = new SqlCommand(sql, conn))
             {
+                cmd.Parameters.Add(new SqlParameter("@bankCode",        SqlDbType.Int)       { Value = bankCode });
+                cmd.Parameters.Add(new SqlParameter("@productCode",     SqlDbType.Int)       { Value = productCode });
+                cmd.Parameters.Add(new SqlParameter("@productName",     SqlDbType.NVarChar)  { Value = productName ?? (object)DBNull.Value, Size = 200 });
+                cmd.Parameters.Add(new SqlParameter("@statPeriod",      SqlDbType.Int)       { Value = int.Parse(statementDate.ToString("yyyyMM")) });
+                cmd.Parameters.Add(new SqlParameter("@noOfStatements",  SqlDbType.Int)       { Value = noOfStatements });
+                cmd.Parameters.Add(new SqlParameter("@noOfTransactions",SqlDbType.Int)       { Value = noOfTransactions });
+                cmd.Parameters.Add(new SqlParameter("@creationDate",    SqlDbType.DateTime2) { Value = creationDate });
                 cmd.ExecuteNonQuery();
-                using (var commit = new OracleCommand("COMMIT", conn))
-                    commit.ExecuteNonQuery();
             }
         }
 
@@ -69,44 +64,45 @@ namespace StatementFile.Infrastructure.Services
             int      additionalStatements,
             int      additionalTransactions)
         {
-            // Matches clsStatementSummary.UpdateRecordDb():
-            //   UPDATE MSCC_PROD_STAT_MASTER SET COUNT_STAT=...+n, COUNT_INT=...+n
-            //   WHERE branch=X AND product_code=Y AND stat_m=yyyyMM
+            int statPeriod = int.Parse(statementDate.ToString("yyyyMM"));
+
             string selectSql =
                 $"SELECT COUNT_STAT, COUNT_INT FROM {SummaryTable} " +
-                $"WHERE branch = {bankCode} AND product_code = {productCode} " +
-                $"AND stat_m = {statementDate:yyyyMM}";
+                $"WHERE branch = @bankCode AND product_code = @productCode AND stat_m = @statPeriod";
 
             using (var conn = _connFactory.CreateOpenConnection())
             {
                 int currentStat = 0, currentInt = 0;
-                using (var cmd = new OracleCommand(selectSql, conn))
-                using (var rdr = cmd.ExecuteReader())
+                using (var cmd = new SqlCommand(selectSql, conn))
                 {
-                    if (rdr.Read())
+                    cmd.Parameters.Add(new SqlParameter("@bankCode",    SqlDbType.Int) { Value = bankCode });
+                    cmd.Parameters.Add(new SqlParameter("@productCode", SqlDbType.Int) { Value = productCode });
+                    cmd.Parameters.Add(new SqlParameter("@statPeriod",  SqlDbType.Int) { Value = statPeriod });
+                    using (var rdr = cmd.ExecuteReader())
                     {
-                        currentStat = rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0);
-                        currentInt  = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
+                        if (rdr.Read())
+                        {
+                            currentStat = rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0);
+                            currentInt  = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
+                        }
                     }
                 }
 
                 string updateSql =
                     $"UPDATE {SummaryTable} SET " +
-                    $"COUNT_STAT = {currentStat + additionalStatements}, " +
-                    $"COUNT_INT = {currentInt + additionalTransactions} " +
-                    $"WHERE branch = {bankCode} AND product_code = {productCode} " +
-                    $"AND stat_m = {statementDate:yyyyMM}";
+                    $"COUNT_STAT = @countStat, COUNT_INT = @countInt " +
+                    $"WHERE branch = @bankCode AND product_code = @productCode AND stat_m = @statPeriod";
 
-                using (var cmd = new OracleCommand(updateSql, conn))
+                using (var cmd = new SqlCommand(updateSql, conn))
                 {
+                    cmd.Parameters.Add(new SqlParameter("@countStat",   SqlDbType.Int) { Value = currentStat + additionalStatements });
+                    cmd.Parameters.Add(new SqlParameter("@countInt",    SqlDbType.Int) { Value = currentInt  + additionalTransactions });
+                    cmd.Parameters.Add(new SqlParameter("@bankCode",    SqlDbType.Int) { Value = bankCode });
+                    cmd.Parameters.Add(new SqlParameter("@productCode", SqlDbType.Int) { Value = productCode });
+                    cmd.Parameters.Add(new SqlParameter("@statPeriod",  SqlDbType.Int) { Value = statPeriod });
                     cmd.ExecuteNonQuery();
-                    using (var commit = new OracleCommand("COMMIT", conn))
-                        commit.ExecuteNonQuery();
                 }
             }
         }
-
-        private static string EscapeSql(string value)
-            => value?.Replace("'", "''") ?? string.Empty;
     }
 }

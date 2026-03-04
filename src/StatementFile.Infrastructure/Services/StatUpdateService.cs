@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using StatementFile.Domain.Interfaces.Services;
 using StatementFile.Infrastructure.Data;
 using StatementFile.Infrastructure.Data.Repositories;
@@ -9,21 +9,24 @@ using StatementFile.Infrastructure.Data.Repositories;
 namespace StatementFile.Infrastructure.Services
 {
     /// <summary>
-    /// Oracle implementation of <see cref="IStatUpdateService"/>.
+    /// SQL Server implementation of <see cref="IStatUpdateService"/>.
     ///
     /// Replicates clsBasUpdateStat.UpdateStat() from the Common/ folder:
     ///  - Reads a pipe-delimited file: {clientid}|{zipcode}|{barcode}
     ///  - Updates A4M.TSTATEMENTMASTERTABLE rows WHERE branch=4 AND clientid=X
-    ///  - Batches updates into PL/SQL BEGIN...END blocks (max 1000 per batch)
+    ///  - Batches updates into T-SQL semicolon-separated batches (max 1000 per batch)
+    ///
+    /// Oracle PL/SQL BEGIN...END wrapper removed — SQL Server executes a
+    /// semicolon-separated batch in a single SqlCommand.ExecuteNonQuery() call.
     /// </summary>
     public sealed class StatUpdateService : IStatUpdateService
     {
         private const int BatchSize = 1000;
 
-        private readonly OracleConnectionFactory _connFactory;
-        private readonly SessionContext          _session;
+        private readonly SqlConnectionFactory _connFactory;
+        private readonly SessionContext       _session;
 
-        public StatUpdateService(OracleConnectionFactory connFactory, SessionContext session)
+        public StatUpdateService(SqlConnectionFactory connFactory, SessionContext session)
         {
             _connFactory = connFactory ?? throw new ArgumentNullException(nameof(connFactory));
             _session     = session     ?? throw new ArgumentNullException(nameof(session));
@@ -38,7 +41,7 @@ namespace StatementFile.Infrastructure.Services
             using (var reader = new StreamReader(
                        new FileStream(filePath, FileMode.Open), Encoding.ASCII))
             {
-                string sql    = "begin ";
+                string sql    = string.Empty;
                 int    count  = 0;
                 string line;
 
@@ -52,24 +55,22 @@ namespace StatementFile.Infrastructure.Services
                     string barCode  = EscapeSql(parts[2]);
 
                     sql +=
-                        $"UPDATE {stmtSchema}{table} t " +
-                        $"SET t.customerzipcode = '{zipCode}', t.barcode = '{barCode}' " +
-                        $"WHERE t.branch = 4 AND t.clientid = {clientId};";
+                        $"UPDATE {stmtSchema}{table} " +
+                        $"SET customerzipcode = '{zipCode}', barcode = '{barCode}' " +
+                        $"WHERE branch = 4 AND clientid = {clientId};";
                     count++;
 
                     if (count > BatchSize)
                     {
-                        sql += " end;";
-                        using (var cmd = new OracleCommand(sql, conn))
+                        using (var cmd = new SqlCommand(sql, conn))
                             cmd.ExecuteNonQuery();
-                        sql = "begin "; count = 0;
+                        sql = string.Empty; count = 0;
                     }
                 }
 
                 if (count > 0)
                 {
-                    sql += " end;";
-                    using (var cmd = new OracleCommand(sql, conn))
+                    using (var cmd = new SqlCommand(sql, conn))
                         cmd.ExecuteNonQuery();
                 }
             }

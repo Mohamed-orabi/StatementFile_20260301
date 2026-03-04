@@ -1,24 +1,24 @@
 using System;
 using System.Data;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using StatementFile.Application.Interfaces;
 using StatementFile.Domain.Interfaces.Repositories;
 
 namespace StatementFile.Infrastructure.Data.Repositories
 {
     /// <summary>
-    /// Oracle implementation of <see cref="IStatementRepository"/>.
+    /// SQL Server implementation of <see cref="IStatementRepository"/>.
     /// All SQL is parameterised or uses validated field names to prevent injection.
     /// The schema/table names are resolved at runtime from <see cref="SessionContext"/>.
     /// </summary>
     public sealed class StatementRepository : IStatementRepository
     {
-        private readonly OracleConnection      _conn;
+        private readonly SqlConnection         _conn;
         private readonly IConfigurationService _config;
         private readonly SessionContext        _session;
 
         public StatementRepository(
-            OracleConnection      conn,
+            SqlConnection         conn,
             IConfigurationService config,
             SessionContext        session)
         {
@@ -32,14 +32,14 @@ namespace StatementFile.Infrastructure.Data.Repositories
             string schema = _config.GetMainSchema();
             string table  = _session.MainTable;
 
-            string sql = $@"SELECT /*+ index ({schema}{table} iBranchTstatementmastertable) */ *
+            string sql = $@"SELECT *
                             FROM {schema}{table}
-                            WHERE branch = :branchCode
+                            WHERE branch = @branchCode
                             {(string.IsNullOrWhiteSpace(additionalCondition) ? "" : "AND " + additionalCondition)}
                             ORDER BY {ValidateOrderBy(orderBy)}";
 
             return FillDataSet(sql, "MasterTable",
-                new OracleParameter(":branchCode", OracleDbType.Int32) { Value = branchCode });
+                new SqlParameter("@branchCode", SqlDbType.Int) { Value = branchCode });
         }
 
         public DataSet LoadDetailDataSet(int branchCode, string additionalCondition = null)
@@ -48,31 +48,30 @@ namespace StatementFile.Infrastructure.Data.Repositories
             string detailTable = _session.DetailTable;
 
             string sql = $@"SELECT * FROM {schema}{detailTable}
-                            WHERE branch = :branchCode
+                            WHERE branch = @branchCode
                             {(string.IsNullOrWhiteSpace(additionalCondition) ? "" : "AND " + additionalCondition)}
                             ORDER BY statementno, transdate";
 
             return FillDataSet(sql, "DetailTable",
-                new OracleParameter(":branchCode", OracleDbType.Int32) { Value = branchCode });
+                new SqlParameter("@branchCode", SqlDbType.Int) { Value = branchCode });
         }
 
         public DataSet LoadEmailDataSet(int branchCode)
         {
             string schema = _config.GetMainSchema();
-            // Email table naming convention mirrors the legacy approach
             string sql = $@"SELECT m.statementno, m.accountno, c.email
                             FROM {schema}TSTATEMENTMASTERTABLE m
                             LEFT JOIN {schema}TCLIENTEMAIL c ON m.clientid = c.idclient
-                            WHERE m.branch = :branchCode
+                            WHERE m.branch = @branchCode
                             AND c.email IS NOT NULL";
 
             return FillDataSet(sql, "EmailTable",
-                new OracleParameter(":branchCode", OracleDbType.Int32) { Value = branchCode });
+                new SqlParameter("@branchCode", SqlDbType.Int) { Value = branchCode });
         }
 
-        public int ExecuteBatch(string plSqlBlock)
+        public int ExecuteBatch(string sqlBatch)
         {
-            using (var cmd = new OracleCommand(plSqlBlock, _conn))
+            using (var cmd = new SqlCommand(sqlBatch, _conn))
             {
                 return cmd.ExecuteNonQuery();
             }
@@ -80,7 +79,7 @@ namespace StatementFile.Infrastructure.Data.Repositories
 
         public int ExecuteAction(string sql)
         {
-            using (var cmd = new OracleCommand(sql, _conn))
+            using (var cmd = new SqlCommand(sql, _conn))
             {
                 return cmd.ExecuteNonQuery();
             }
@@ -88,10 +87,10 @@ namespace StatementFile.Infrastructure.Data.Repositories
 
         // ── Private Helpers ────────────────────────────────────────────────────────
 
-        private DataSet FillDataSet(string sql, string tableName, params OracleParameter[] parameters)
+        private DataSet FillDataSet(string sql, string tableName, params SqlParameter[] parameters)
         {
             var ds      = new DataSet();
-            var adapter = new OracleDataAdapter(sql, _conn);
+            var adapter = new SqlDataAdapter(sql, _conn);
             foreach (var p in parameters)
                 adapter.SelectCommand.Parameters.Add(p);
             adapter.Fill(ds, tableName);

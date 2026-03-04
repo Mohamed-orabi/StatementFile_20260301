@@ -1,34 +1,38 @@
 using System;
 using System.Data;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using StatementFile.Application.Interfaces;
 using StatementFile.Domain.Interfaces.Services;
+using StatementFile.Infrastructure.Data;
 using StatementFile.Infrastructure.Data.Repositories;
 
 namespace StatementFile.Infrastructure.Services
 {
     /// <summary>
-    /// Oracle implementation of <see cref="IDataMaintenanceService"/>.
+    /// SQL Server implementation of <see cref="IDataMaintenanceService"/>.
     ///
-    /// Preserves the exact batch-processing logic from clsMaintainData:
-    ///  - PL/SQL BEGIN...END batch blocks accumulating up to MaxNoTrans statements
-    ///  - Oracle parallel hints on DELETE operations where the legacy used them
-    ///  - Arabic-address detection via "???" prefix check
+    /// Oracle → T-SQL translations applied:
+    ///   - OracleDataAdapter  →  SqlDataAdapter
+    ///   - OracleConnection   →  SqlConnection
+    ///   - PL/SQL BEGIN...END batch  →  semicolon-separated T-SQL batch
+    ///   - Oracle /*+ parallel (...,4) */ hints removed
+    ///   - MergeMarkUpFees: Oracle rowid-based deletes replaced with
+    ///     T-SQL CTEs using ROW_NUMBER() OVER (PARTITION BY docno ORDER BY merchant DESC)
     ///
     /// Schema mapping (from clsSessionValues):
     ///  - session.StatementDbSchema ("A4M.") → TSTATEMENTMASTERTABLE / TSTATEMENTDETAILTABLE
-    ///  - config.GetMainSchema()             → client/reference tables (tClientPersone etc.)
+    ///  - config.GetMainSchema()             → client/reference tables
     /// </summary>
     public sealed class DataMaintenanceService : IDataMaintenanceService
     {
         private const int MaxNoTrans = 500;
 
-        private readonly OracleConnectionFactory _connFactory;
+        private readonly SqlConnectionFactory    _connFactory;
         private readonly IConfigurationService   _config;
         private readonly SessionContext          _session;
 
         public DataMaintenanceService(
-            OracleConnectionFactory connFactory,
+            SqlConnectionFactory    connFactory,
             IConfigurationService   config,
             SessionContext          session)
         {
@@ -42,7 +46,6 @@ namespace StatementFile.Infrastructure.Services
         public int CleanNullCards(int branchCode, bool excludeReward, bool excludeInstallment,
                                   string installmentCondition)
         {
-            // Uses A4M. schema for statement tables — matches clsSessionValues.mainDbSchema
             string stmtSchema = _session.StatementDbSchema;
             string table      = _session.MainTable;
             int    rows       = 0;
@@ -51,9 +54,10 @@ namespace StatementFile.Infrastructure.Services
             {
                 if (excludeReward)
                 {
+                    // Oracle /*+ parallel (...,4) */ hint removed for SQL Server
                     string sql =
-                        $"DELETE /*+ parallel ({stmtSchema}{table},4) */ FROM {stmtSchema}{table} t " +
-                        $"WHERE t.cardno IS NULL AND branch = {branchCode} " +
+                        $"DELETE FROM {stmtSchema}{table} " +
+                        $"WHERE cardno IS NULL AND branch = {branchCode} " +
                         $"AND contracttype != 'Reward Program (Airmile)'";
                     rows += Execute(conn, sql);
                 }
@@ -61,8 +65,8 @@ namespace StatementFile.Infrastructure.Services
                 if (excludeInstallment && !string.IsNullOrWhiteSpace(installmentCondition))
                 {
                     string sql =
-                        $"DELETE /*+ parallel ({stmtSchema}{table},4) */ FROM {stmtSchema}{table} t " +
-                        $"WHERE t.cardno IS NULL AND branch = {branchCode} " +
+                        $"DELETE FROM {stmtSchema}{table} " +
+                        $"WHERE cardno IS NULL AND branch = {branchCode} " +
                         $"AND contracttype NOT IN {installmentCondition}";
                     rows += Execute(conn, sql);
                 }
@@ -76,8 +80,7 @@ namespace StatementFile.Infrastructure.Services
             string table      = _session.MainTable;
 
             string query =
-                $"SELECT /*+ index ({stmtSchema}{table} iBranchTstatementmastertable) */ " +
-                $"STATEMENTNO, branch, clientid, cardcreationdate, cardbranchpart, cardbranchpartname " +
+                $"SELECT STATEMENTNO, branch, clientid, cardcreationdate, cardbranchpart, cardbranchpartname " +
                 $"FROM {stmtSchema}{table} " +
                 $"WHERE branch = {branchCode} " +
                 $"ORDER BY branch, clientid, cardcreationdate";
@@ -85,7 +88,7 @@ namespace StatementFile.Infrastructure.Services
             using (var conn = _connFactory.CreateOpenConnection())
             {
                 var ds = new DataSet();
-                new OracleDataAdapter(query, conn).Fill(ds, "DS");
+                new SqlDataAdapter(query, conn).Fill(ds, "DS");
 
                 string curClientId   = string.Empty;
                 int    curBranchCode = 0;
@@ -96,7 +99,7 @@ namespace StatementFile.Infrastructure.Services
                 bool   needChange    = false;
                 long   sqlCnt        = 0;
                 int    rtrnVal       = 0;
-                string batch         = "begin ";
+                string batch         = string.Empty;
 
                 foreach (DataRow row in ds.Tables["DS"].Rows)
                 {
@@ -129,8 +132,8 @@ namespace StatementFile.Infrastructure.Services
 
                             if (sqlCnt >= MaxNoTrans)
                             {
-                                Execute(conn, batch + " end;");
-                                batch = "begin "; sqlCnt = 0;
+                                Execute(conn, batch);
+                                batch = string.Empty; sqlCnt = 0;
                             }
                         }
                         needChange = false;
@@ -154,7 +157,7 @@ namespace StatementFile.Infrastructure.Services
                 }
 
                 if (sqlCnt > 0 || needChange)
-                    Execute(conn, batch + " end;");
+                    Execute(conn, batch);
 
                 return rtrnVal;
             }
@@ -165,7 +168,6 @@ namespace StatementFile.Infrastructure.Services
             string stmtSchema = _session.StatementDbSchema;
             string table      = _session.MainTable;
 
-            // Load all 9 address fields; filter corrupted ones in code (matches legacy)
             string query =
                 $"SELECT branch, statementnumber, " +
                 $"customeraddress1, customeraddress2, customeraddress3, " +
@@ -178,11 +180,11 @@ namespace StatementFile.Infrastructure.Services
             using (var conn = _connFactory.CreateOpenConnection())
             {
                 var ds = new DataSet();
-                new OracleDataAdapter(query, conn).Fill(ds, "DS");
+                new SqlDataAdapter(query, conn).Fill(ds, "DS");
 
                 long   sqlCnt = 0;
                 int    rtrn   = 0;
-                string batch  = "begin ";
+                string batch  = string.Empty;
 
                 foreach (DataRow row in ds.Tables["DS"].Rows)
                 {
@@ -212,13 +214,13 @@ namespace StatementFile.Infrastructure.Services
 
                     if (sqlCnt >= MaxNoTrans)
                     {
-                        Execute(conn, batch + " end;");
-                        batch = "begin "; sqlCnt = 0;
+                        Execute(conn, batch);
+                        batch = string.Empty; sqlCnt = 0;
                     }
                 }
 
                 if (sqlCnt > 0)
-                    Execute(conn, batch + " end;");
+                    Execute(conn, batch);
 
                 return rtrn;
             }
@@ -226,14 +228,9 @@ namespace StatementFile.Infrastructure.Services
 
         public int DeleteOnHoldTransactions(int branchCode, bool isReward = false)
         {
-            string stmtSchema   = _session.StatementDbSchema;
-            string detailTable  = _session.DetailTable;
+            string stmtSchema  = _session.StatementDbSchema;
+            string detailTable = _session.DetailTable;
 
-            // Real legacy SQL from clsMaintainData.deleteOnHoldTrans():
-            //   delete FROM A4M.TSTATEMENTDETAILTABLE d
-            //   where d.branch = {pBranch}
-            //   and POSTINGDATE is null and DOCNO is null
-            //   [and d.trandescription != 'Calculated Points'  -- only when isReward=true]
             string suplCond = isReward ? " AND d.trandescription != 'Calculated Points'" : string.Empty;
             string sql =
                 $"DELETE FROM {stmtSchema}{detailTable} d " +
@@ -248,9 +245,6 @@ namespace StatementFile.Infrastructure.Services
             string stmtSchema = _session.StatementDbSchema;
             string table      = _session.MainTable;
 
-            // Resets the reward-generation flag so the formatter re-calculates
-            // reward balances during this run.
-            // Legacy: clsMaintainData.fixReward()
             string sql =
                 $"UPDATE {stmtSchema}{table} SET REWARDGENERATED = 'N' " +
                 $"WHERE branch = {branchCode} AND contracttype = {rewardContractCondition}";
@@ -264,19 +258,18 @@ namespace StatementFile.Infrastructure.Services
             string stmtSchema = _session.StatementDbSchema;
             string table      = _session.MainTable;
 
-            // Selects records where customeraddress1 > 50 chars and address2 is null.
-            // Legacy: clsMaintainData.fixAddress(int pBankCode)
+            // LEN() in T-SQL is equivalent to LENGTH() in Oracle
             string query =
                 $"SELECT DISTINCT branch, statementnumber, customeraddress1 " +
                 $"FROM {stmtSchema}{table} " +
                 $"WHERE branch = {branchCode} " +
-                $"AND LENGTH(customeraddress1) > 50 AND customeraddress2 IS NULL " +
+                $"AND LEN(customeraddress1) > 50 AND customeraddress2 IS NULL " +
                 $"ORDER BY statementnumber";
 
             using (var conn = _connFactory.CreateOpenConnection())
             {
                 var ds = new DataSet();
-                new OracleDataAdapter(query, conn).Fill(ds, "DS");
+                new SqlDataAdapter(query, conn).Fill(ds, "DS");
 
                 int rtrn = 0;
                 foreach (DataRow row in ds.Tables["DS"].Rows)
@@ -322,17 +315,16 @@ namespace StatementFile.Infrastructure.Services
             using (var conn = _connFactory.CreateOpenConnection())
             {
                 var ds = new DataSet();
-                new OracleDataAdapter(query, conn).Fill(ds, "DS");
+                new SqlDataAdapter(query, conn).Fill(ds, "DS");
 
                 long   sqlCnt = 0;
                 int    rtrn   = 0;
-                string batch  = "begin ";
+                string batch  = string.Empty;
 
                 foreach (DataRow row in ds.Tables["DS"].Rows)
                 {
                     string addr1 = row["customeraddress1"].ToString().Trim();
 
-                    // Strip "???" prefix if present — legacy ValidateArbic()
                     if (IsCorruptedArabic(addr1))
                     {
                         string update =
@@ -348,10 +340,9 @@ namespace StatementFile.Infrastructure.Services
                             $"cardaddress3 = '{EscapeSql(FixArabic(row["cardaddress3"].ToString().Trim()))}' " +
                             $"WHERE branch = {branchCode} AND statementnumber = {row["statementnumber"]}";
                         batch += update + ";"; sqlCnt++; rtrn++;
-                        if (sqlCnt >= MaxNoTrans) { Execute(conn, batch + " end;"); batch = "begin "; sqlCnt = 0; }
+                        if (sqlCnt >= MaxNoTrans) { Execute(conn, batch); batch = string.Empty; sqlCnt = 0; }
                     }
 
-                    // Set companycode based on Arabic content detection — legacy ValidateIsArbic()
                     string fixedAddr = FixArabic(addr1);
                     bool   isArabic  = ContainsArabic(fixedAddr);
                     int    langCode  = isArabic ? 1 : 0;
@@ -359,11 +350,11 @@ namespace StatementFile.Infrastructure.Services
                         $"UPDATE {stmtSchema}{table} t SET t.companycode = {langCode} " +
                         $"WHERE branch = {branchCode} AND statementnumber = {row["statementnumber"]}";
                     batch += langUpdate + ";"; sqlCnt++; rtrn++;
-                    if (sqlCnt >= MaxNoTrans) { Execute(conn, batch + " end;"); batch = "begin "; sqlCnt = 0; }
+                    if (sqlCnt >= MaxNoTrans) { Execute(conn, batch); batch = string.Empty; sqlCnt = 0; }
                 }
 
                 if (sqlCnt > 0)
-                    Execute(conn, batch + " end;");
+                    Execute(conn, batch);
 
                 return rtrn;
             }
@@ -371,96 +362,74 @@ namespace StatementFile.Infrastructure.Services
 
         public void MergeMarkUpFees(int branchCode)
         {
-            string stmtSchema   = _session.StatementDbSchema;
-            string detailTable  = _session.DetailTable;
+            string stmtSchema  = _session.StatementDbSchema;
+            string detailTable = _session.DetailTable;
 
-            // Selects rows grouped by docno where trandescription contains 'Mark-Up Fee',
-            // aggregates billtranamount, and deletes the duplicate rows.
-            // Legacy: clsMaintainData.mergeMarkUpFees(int pBranch)
-            string query =
-                $"SELECT t.rowid, t.docno, t.billtranamount " +
-                $"FROM {stmtSchema}{detailTable} t " +
-                $"WHERE t.branch = {branchCode} " +
-                $"AND t.refereneno != ' ' " +
-                $"AND t.docno IN (" +
-                $"  SELECT x.docno FROM {stmtSchema}{detailTable} x " +
-                $"  WHERE x.branch = {branchCode} AND x.trandescription LIKE '%Mark-Up Fee%' " +
-                $"  GROUP BY x.docno) " +
-                $"AND t.trandescription NOT LIKE '%International%' " +
-                $"ORDER BY t.docno, t.merchant DESC";
+            // Replace Oracle rowid-based loop with two T-SQL CTE statements.
+            //
+            // Step 1: Update the "main" row for each docno group (highest merchant value)
+            //         with the total billtranamount across all rows in the group.
+            string updateSql = $@"
+UPDATE t
+SET    t.billtranamount = totals.total_amount
+FROM   {stmtSchema}{detailTable} t
+JOIN   (
+    SELECT docno, SUM(billtranamount) AS total_amount
+    FROM   {stmtSchema}{detailTable}
+    WHERE  branch      = {branchCode}
+      AND  refereneno != ' '
+      AND  docno IN (
+               SELECT x.docno
+               FROM   {stmtSchema}{detailTable} x
+               WHERE  x.branch = {branchCode}
+                 AND  x.trandescription LIKE '%Mark-Up Fee%'
+               GROUP  BY x.docno)
+      AND  trandescription NOT LIKE '%International%'
+    GROUP  BY docno
+) totals ON t.docno = totals.docno
+WHERE  t.branch      = {branchCode}
+  AND  t.refereneno != ' '
+  AND  t.trandescription NOT LIKE '%International%'
+  AND  t.merchant = (
+           SELECT MAX(t2.merchant)
+           FROM   {stmtSchema}{detailTable} t2
+           WHERE  t2.branch      = {branchCode}
+             AND  t2.docno       = t.docno
+             AND  t2.refereneno != ' '
+             AND  t2.trandescription NOT LIKE '%International%')";
+
+            // Step 2: Delete supplementary rows (rn > 1, i.e., all but the max-merchant row).
+            string deleteSql = $@"
+;WITH Ranked AS (
+    SELECT ROW_NUMBER() OVER (PARTITION BY docno ORDER BY merchant DESC) AS rn
+    FROM   {stmtSchema}{detailTable}
+    WHERE  branch      = {branchCode}
+      AND  refereneno != ' '
+      AND  docno IN (
+               SELECT x.docno
+               FROM   {stmtSchema}{detailTable} x
+               WHERE  x.branch = {branchCode}
+                 AND  x.trandescription LIKE '%Mark-Up Fee%'
+               GROUP  BY x.docno)
+      AND  trandescription NOT LIKE '%International%'
+)
+DELETE FROM Ranked WHERE rn > 1";
 
             using (var conn = _connFactory.CreateOpenConnection())
             {
-                var ds = new DataSet();
-                new OracleDataAdapter(query, conn).Fill(ds, "DS");
-
-                string  docNo      = string.Empty;
-                string  mainRowId  = string.Empty;
-                string  supRowId   = string.Empty;
-                decimal totTrans   = 0;
-                long    sqlCnt     = 0;
-                string  batch      = "begin ";
-
-                foreach (DataRow row in ds.Tables["DS"].Rows)
-                {
-                    string curDocNo = row["docno"].ToString();
-
-                    if (docNo == curDocNo)
-                    {
-                        supRowId  = row["rowid"].ToString();
-                        totTrans += Convert.ToDecimal(row["billtranamount"].ToString());
-                        batch    += $"DELETE FROM {stmtSchema}{detailTable} WHERE rowid = '{supRowId}';";
-                        sqlCnt++;
-                    }
-                    else
-                    {
-                        if (!string.IsNullOrEmpty(docNo))
-                        {
-                            batch += $"UPDATE {stmtSchema}{detailTable} " +
-                                     $"SET billtranamount = {totTrans} WHERE rowid = '{mainRowId}';";
-                            sqlCnt++;
-                        }
-                        totTrans  = 0; supRowId = string.Empty;
-                        mainRowId = row["rowid"].ToString();
-                        totTrans  = Convert.ToDecimal(row["billtranamount"].ToString());
-                    }
-                    docNo = curDocNo;
-
-                    if (sqlCnt >= MaxNoTrans)
-                    {
-                        Execute(conn, batch + " end;");
-                        batch = "begin "; sqlCnt = 0;
-                    }
-                }
-
-                // Flush final row update
-                if (!string.IsNullOrEmpty(supRowId))
-                {
-                    batch += $"UPDATE {stmtSchema}{detailTable} " +
-                             $"SET billtranamount = {totTrans} WHERE rowid = '{mainRowId}';";
-                    sqlCnt++;
-                }
-
-                if (sqlCnt > 0)
-                    Execute(conn, batch + " end;");
+                Execute(conn, updateSql);
+                Execute(conn, deleteSql);
             }
         }
 
         // ── Private Helpers ────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Detects Arabic address corruption — "???" prefix from Latin-only encoding.
-        /// </summary>
         private static bool IsCorruptedArabic(string value)
         {
             string v = value.Trim();
             return v.Length > 3 && v.Substring(0, 3) == "???";
         }
 
-        /// <summary>
-        /// Detects whether a string contains Arabic Unicode characters (U+0600–U+06FF).
-        /// Matches legacy basText.isContainArbic().
-        /// </summary>
         private static bool ContainsArabic(string value)
         {
             foreach (char c in value)
@@ -469,19 +438,12 @@ namespace StatementFile.Infrastructure.Services
             return false;
         }
 
-        /// <summary>
-        /// Strips the leading "???" from an Arabic address field.
-        /// </summary>
         private static string FixArabic(string value)
         {
             string v = value.Trim();
             return IsCorruptedArabic(v) ? v.Substring(3) : v;
         }
 
-        /// <summary>
-        /// Splits an address longer than 50 chars at a word boundary.
-        /// Matches clsMaintainData.fixAddress(int, string, out string, out string).
-        /// </summary>
         private static void SplitAddress(string original, out string addr1, out string addr2)
         {
             addr1 = addr2 = string.Empty;
@@ -503,9 +465,9 @@ namespace StatementFile.Infrastructure.Services
         private static string EscapeSql(string value)
             => value?.Replace("'", "''") ?? string.Empty;
 
-        private static int Execute(OracleConnection conn, string sql)
+        private static int Execute(SqlConnection conn, string sql)
         {
-            using (var cmd = new OracleCommand(sql, conn))
+            using (var cmd = new SqlCommand(sql, conn))
                 return cmd.ExecuteNonQuery();
         }
     }

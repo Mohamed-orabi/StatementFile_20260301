@@ -5,7 +5,7 @@ namespace StatementFile.Application.Interfaces
 {
     /// <summary>
     /// Provides access to all runtime configuration: mail routing, output paths,
-    /// SMTP settings, and Oracle connection details.
+    /// SMTP settings, and SQL Server connection details.
     /// Implementations read from appsettings / JSON / App.config so the domain
     /// stays free of configuration coupling.
     /// </summary>
@@ -20,10 +20,10 @@ namespace StatementFile.Application.Interfaces
         /// <summary>Returns the SMTP server address.</summary>
         string GetSmtpServer();
 
-        /// <summary>Returns the Oracle connection string.</summary>
-        string GetOracleConnectionString();
+        /// <summary>Returns the SQL Server connection string.</summary>
+        string GetSqlConnectionString();
 
-        /// <summary>Returns the default Oracle main schema prefix.</summary>
+        /// <summary>Returns the default main schema prefix.</summary>
         string GetMainSchema();
 
         /// <summary>Returns the merchant statement MDB template path.</summary>
