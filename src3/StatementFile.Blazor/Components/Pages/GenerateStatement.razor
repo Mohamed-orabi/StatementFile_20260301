@@ -1,0 +1,103 @@
+@page "/generate"
+@using StatementFile.Application.DTOs
+@using StatementFile.Blazor.Services
+@inject StatementApiClient Api
+@rendermode InteractiveServer
+
+<h1>Generate Statement</h1>
+
+@if (_error != null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+
+@if (_result != null)
+{
+    <div class="alert @(_result.Success ? "alert-success" : "alert-danger") mt-3">
+        @if (_result.Success)
+        {
+            <strong>&#10003; Generation successful</strong>
+            <ul class="mb-0 mt-2">
+                <li>Files generated:   @_result.FilesGenerated</li>
+                <li>Emails sent:       @_result.EmailsSent</li>
+                <li>Statements count:  @_result.StatementsCount</li>
+                <li>Output directory:  <code>@_result.OutputDirectory</code></li>
+            </ul>
+        }
+        else
+        {
+            <strong>&#10007; Failed:</strong> @_result.Error
+        }
+    </div>
+}
+
+<div class="card mt-3" style="max-width:600px">
+    <div class="card-body">
+
+        <div class="mb-3">
+            <label class="form-label">Bank / Product Configuration</label>
+            @if (_configs == null)
+            {
+                <p class="text-muted">Loading configs...</p>
+            }
+            else
+            {
+                <select class="form-select" @bind="_req.ConfigId">
+                    <option value="0">— select —</option>
+                    @foreach (var c in _configs)
+                    {
+                        <option value="@c.Id">[@c.Id] @c.BankFullName – @c.CardProduct (@c.FormatterKey)</option>
+                    }
+                </select>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Statement Date</label>
+            <input class="form-control" type="date" @bind="_req.StatementDate" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Output Directory (leave blank to use server default)</label>
+            <input class="form-control" placeholder="e.g. C:\StatementOutput\March2026" @bind="_req.OutputDirectory" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Email Override (optional — for testing)</label>
+            <input class="form-control" type="email" placeholder="test@example.com" @bind="_req.EmailOverride" />
+        </div>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" @bind="_req.AppendData" />
+            <label class="form-check-label">Append data (don't overwrite existing output)</label>
+        </div>
+
+        <button class="btn btn-success" @onclick="Generate" disabled="@_running">
+            @(_running ? "Generating…" : "Generate")
+        </button>
+
+    </div>
+</div>
+
+@code {
+    List<BankConfigDto> _configs;
+    GenerateStatementRequest _req = new() { StatementDate = DateTime.Today };
+    GenerationResultDto _result;
+    bool _running;
+    string _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try   { _configs = await Api.GetActiveConfigsAsync(); }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    async Task Generate()
+    {
+        if (_req.ConfigId == 0) { _error = "Select a configuration."; return; }
+        _error = null; _result = null; _running = true;
+        try   { _result = await Api.GenerateAsync(_req); }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _running = false; }
+    }
+}

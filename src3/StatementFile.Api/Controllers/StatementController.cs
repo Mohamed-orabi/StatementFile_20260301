@@ -59,7 +59,7 @@ namespace StatementFile.Api.Controllers
             if (!config.IsActive)
                 return BadRequest(new { error = $"Configuration ID {req.ConfigId} is inactive." });
 
-            var connStr   = _config.GetOracleConnectionString();
+            var connStr   = _config.GetSqlConnectionString();
             var outputDir = string.IsNullOrWhiteSpace(req.OutputDirectory)
                 ? _config.GetStatementOutputPath()
                 : req.OutputDirectory;

@@ -43,7 +43,7 @@ namespace StatementFile.Api.Controllers
                 RunCardBranchMatch      = req.RunCardBranchMatch,
                 RewardContractCondition = req.RewardContractCondition,
                 InstallmentCondition    = req.InstallmentCondition,
-                ConnectionString        = _config.GetOracleConnectionString(),
+                ConnectionString        = _config.GetSqlConnectionString(),
             });
 
             if (result.IsSuccess)

@@ -1,20 +1,17 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StatementFile.Application.Commands;
 using StatementFile.Domain.Interfaces;
+using StatementFile.Infrastructure.Data;
 using StatementFile.Infrastructure.Email;
 using StatementFile.Infrastructure.Formatters;
-using StatementFile.Infrastructure.Oracle;
 
 namespace StatementFile.Infrastructure.Configuration
 {
     /// <summary>
-    /// Extension method that wires all Infrastructure services into the .NET 8 DI container.
-    ///
+    /// Wires all Infrastructure services into the .NET 8 DI container.
     /// Call <c>services.AddInfrastructure(configuration)</c> from Program.cs.
-    ///
-    /// This replaces the manual <c>CompositionRoot</c> pattern used in the
-    /// original WinForms and src / src2 solutions.
     /// </summary>
     public static class InfrastructureServiceExtensions
     {
@@ -22,18 +19,24 @@ namespace StatementFile.Infrastructure.Configuration
             this IServiceCollection services,
             IConfiguration          configuration)
         {
-            // ── Configuration ─────────────────────────────────────────────────────
+            // ── Configuration service ─────────────────────────────────────────────
             services.AddSingleton<IConfigurationService, AppConfigurationService>();
 
-            // ── Oracle ────────────────────────────────────────────────────────────
-            var connStr = configuration.GetConnectionString("Oracle")
-                          ?? configuration["Oracle:ConnectionString"]
+            // ── EF Core – SQL Server ──────────────────────────────────────────────
+            var connStr = configuration.GetConnectionString("SqlServer")
+                          ?? configuration["SqlServer:ConnectionString"]
                           ?? string.Empty;
 
-            services.AddSingleton<IDbConnectionFactory>(_ => new OracleConnectionFactory(connStr));
-            services.AddSingleton<IBankProductConfigRepository, BankProductConfigRepository>();
-            services.AddSingleton<IStatementRunRepository, StatementRunRepository>();
-            services.AddSingleton<IBulkMaintenanceService, OracleBulkMaintenanceService>();
+            services.AddDbContext<StatementFileDbContext>(opts =>
+                opts.UseSqlServer(connStr,
+                    sql => sql.CommandTimeout(300)));
+
+            // Scoped repositories (lifetime matches DbContext)
+            services.AddScoped<IBankProductConfigRepository, EfBankProductConfigRepository>();
+            services.AddScoped<IStatementRunRepository,      EfStatementRunRepository>();
+
+            // Bulk maintenance uses ADO.NET directly (stored-proc calls)
+            services.AddSingleton<IBulkMaintenanceService, SqlBulkMaintenanceService>();
 
             // ── Email ─────────────────────────────────────────────────────────────
             var smtp = new SmtpSettings
@@ -48,8 +51,6 @@ namespace StatementFile.Infrastructure.Configuration
             services.AddSingleton<IEmailService, SmtpEmailService>();
 
             // ── Formatter registry ────────────────────────────────────────────────
-            // Register one formatter per FormatterKey value.
-            // New banks are added here — no switch-case required anywhere.
             services.AddSingleton<FormatterRegistry>(sp =>
             {
                 var email   = sp.GetRequiredService<IEmailService>();
@@ -59,23 +60,17 @@ namespace StatementFile.Infrastructure.Configuration
 
                 var registry = new FormatterRegistry();
 
-                // ── HTML formatters (one entry per bank that uses HTML output) ───
                 foreach (var key in new[]
                 {
-                    "HTML_UBA",   "HTML_BDCA",  "HTML_AIB",   "HTML_BAI",
-                    "HTML_BIC",   "HTML_NSGB",  "HTML_CORP",  "HTML_PREPAID",
-                    "HTML_RAS",   "HTML_REWARD", "HTML_DEFAULT"
+                    "HTML_UBA", "HTML_BDCA", "HTML_AIB", "HTML_BAI",
+                    "HTML_BIC", "HTML_NSGB", "HTML_CORP", "HTML_PREPAID",
+                    "HTML_RAS", "HTML_REWARD", "HTML_DEFAULT"
                 })
                     registry.Register(key, htmlFmt);
 
-                // ── Text / export formatters ──────────────────────────────────────
-                foreach (var key in new[]
-                {
-                    "TXT_NSGB", "TXT_EXPORT", "TXT_DEFAULT"
-                })
+                foreach (var key in new[] { "TXT_NSGB", "TXT_EXPORT", "TXT_DEFAULT" })
                     registry.Register(key, txtFmt);
 
-                // ── Raw-data / CSV formatters ─────────────────────────────────────
                 foreach (var key in new[]
                 {
                     "RAWDATA_EXPORT", "RAWDATA_REWARD", "RAWDATA_RAS",
@@ -86,13 +81,12 @@ namespace StatementFile.Infrastructure.Configuration
                 return registry;
             });
 
-            // Expose as the domain interface
             services.AddSingleton<IFormatterRegistry>(sp =>
                 sp.GetRequiredService<FormatterRegistry>());
 
             // ── Application handlers ──────────────────────────────────────────────
-            services.AddTransient<GenerateStatementHandler>();
-            services.AddTransient<RunMaintenanceHandler>();
+            services.AddScoped<GenerateStatementHandler>();
+            services.AddScoped<RunMaintenanceHandler>();
 
             return services;
         }

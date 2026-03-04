@@ -1,0 +1,117 @@
+@page "/maintenance"
+@using StatementFile.Application.DTOs
+@using StatementFile.Blazor.Services
+@inject StatementApiClient Api
+@rendermode InteractiveServer
+
+<h1>Bulk Maintenance</h1>
+<p class="text-muted">Runs the same data-cleanup stored procedures that frmStatementFile executed before each generation cycle.</p>
+
+@if (_error   != null) { <div class="alert alert-danger">@_error</div> }
+@if (_success != null) { <div class="alert alert-success">@_success</div> }
+
+<div class="card mt-2" style="max-width:600px">
+    <div class="card-body">
+
+        <div class="mb-3">
+            <label class="form-label">Branch Code</label>
+            <input class="form-control" type="number" @bind="_req.BranchCode" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Processing Steps</label>
+            <div class="d-flex flex-column gap-2 mt-1">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_fixArabic" />
+                    <label class="form-check-label">Fix Arabic Address</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_fixAddress" />
+                    <label class="form-check-label">Fix English Address</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_deleteOnHold" />
+                    <label class="form-check-label">Delete On-Hold Records</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_reward" />
+                    <label class="form-check-label">Process Reward Data</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="_mergeMarkUp" />
+                    <label class="form-check-label">Merge Mark-Up Fees</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" @bind="_req.RunNullCardDelete" />
+                <label class="form-check-label">Delete Null-Card Records</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" @bind="_req.RunCardBranchMatch" />
+                <label class="form-check-label">Match Card to Branch</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" @bind="_req.ExcludeReward" />
+                <label class="form-check-label">Exclude Reward Records</label>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Reward Contract Condition (SQL)</label>
+            <input class="form-control font-monospace" @bind="_req.RewardContractCondition" />
+        </div>
+
+        <button class="btn btn-warning text-dark" @onclick="Run" disabled="@_running">
+            @(_running ? "Running…" : "Run Maintenance")
+        </button>
+
+    </div>
+</div>
+
+@code {
+    // Individual flag checkboxes (mapped to ProcessingMode bitmask on submit)
+    bool _fixArabic;
+    bool _fixAddress;
+    bool _deleteOnHold;
+    bool _reward;
+    bool _mergeMarkUp;
+
+    MaintenanceRequest _req = new()
+    {
+        BranchCode              = 1,
+        RunNullCardDelete       = true,
+        RunCardBranchMatch      = true,
+        ExcludeReward           = true,
+        RewardContractCondition = "'New Reward Contract'",
+    };
+
+    bool _running;
+    string _error;
+    string _success;
+
+    async Task Run()
+    {
+        _error = null; _success = null; _running = true;
+
+        // Build ProcessingModes bitmask from checkboxes
+        long modes = 0;
+        if (_fixArabic)    modes |= 2;   // ProcessingMode.FixArabicAddress
+        if (_fixAddress)   modes |= 4;   // ProcessingMode.FixAddress
+        if (_deleteOnHold) modes |= 16;  // ProcessingMode.DeleteOnHold
+        if (_reward)       modes |= 32;  // ProcessingMode.Reward
+        if (_mergeMarkUp)  modes |= 64;  // ProcessingMode.MergeMarkUpFees
+        _req.ProcessingModes = modes;
+
+        try
+        {
+            var ok = await Api.RunMaintenanceAsync(_req);
+            if (ok) _success = "Maintenance completed successfully.";
+            else    _error   = "Maintenance returned an error — check API logs.";
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _running = false; }
+    }
+}

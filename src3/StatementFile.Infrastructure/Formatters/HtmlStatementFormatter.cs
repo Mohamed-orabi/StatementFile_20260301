@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Text;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using StatementFile.Domain.Entities;
 using StatementFile.Domain.Interfaces;
 
@@ -44,7 +44,7 @@ namespace StatementFile.Infrastructure.Formatters
 
             try
             {
-                using var conn = new OracleConnection(ctx.ConnectionString);
+                using var conn = new SqlConnection(ctx.ConnectionString);
                 conn.Open();
 
                 var accounts = FetchAccounts(conn, masterTable, config, ctx.StatementDate);
@@ -105,7 +105,7 @@ namespace StatementFile.Infrastructure.Formatters
             return "CR";
         }
 
-        private static DataTable FetchAccounts(OracleConnection conn, string table,
+        private static DataTable FetchAccounts(SqlConnection conn, string table,
             BankProductConfig cfg, DateTime stmtDate)
         {
             var sb = new StringBuilder($@"
@@ -123,17 +123,17 @@ namespace StatementFile.Infrastructure.Formatters
             if (cfg.ExcludeReward && !string.IsNullOrWhiteSpace(cfg.RewardCondition))
                 sb.Append($" AND NOT ({cfg.RewardCondition})");
 
-            using var cmd = new OracleCommand(sb.ToString(), conn);
+            using var cmd = new SqlCommand(sb.ToString(), conn);
             cmd.Parameters.Add(":branchCode", cfg.BranchCode);
             cmd.Parameters.Add(":stmtDate",   stmtDate);
 
-            using var adapter = new OracleDataAdapter(cmd);
+            using var adapter = new SqlDataAdapter(cmd);
             var dt = new DataTable();
             adapter.Fill(dt);
             return dt;
         }
 
-        private static DataTable FetchTransactions(OracleConnection conn, string table,
+        private static DataTable FetchTransactions(SqlConnection conn, string table,
             string accountNumber, DateTime stmtDate, BankProductConfig cfg)
         {
             var sb = new StringBuilder($@"
@@ -145,11 +145,11 @@ namespace StatementFile.Infrastructure.Formatters
             if (!string.IsNullOrWhiteSpace(cfg.InstallmentCondition))
                 sb.Append($" AND NOT ({cfg.InstallmentCondition})");
 
-            using var cmd = new OracleCommand(sb.ToString(), conn);
+            using var cmd = new SqlCommand(sb.ToString(), conn);
             cmd.Parameters.Add(":acctNo",   accountNumber);
             cmd.Parameters.Add(":stmtDate", stmtDate);
 
-            using var adapter = new OracleDataAdapter(cmd);
+            using var adapter = new SqlDataAdapter(cmd);
             var dt = new DataTable();
             adapter.Fill(dt);
             return dt;

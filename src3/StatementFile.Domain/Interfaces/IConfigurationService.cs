@@ -6,7 +6,7 @@ namespace StatementFile.Domain.Interfaces
     /// </summary>
     public interface IConfigurationService
     {
-        string GetOracleConnectionString();
+        string GetSqlConnectionString();
         string GetStatementOutputPath();
         string GetReportTemplatePath();
         string GetSmtpHost();

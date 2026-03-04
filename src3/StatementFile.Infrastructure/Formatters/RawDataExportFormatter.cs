@@ -1,7 +1,7 @@
 using System;
 using System.Data;
 using System.IO;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using StatementFile.Domain.Entities;
 using StatementFile.Domain.Interfaces;
 
@@ -21,7 +21,7 @@ namespace StatementFile.Infrastructure.Formatters
 
             try
             {
-                using var conn = new OracleConnection(ctx.ConnectionString);
+                using var conn = new SqlConnection(ctx.ConnectionString);
                 conn.Open();
 
                 var sql = $@"SELECT M.* FROM {masterTable} M
@@ -31,11 +31,11 @@ namespace StatementFile.Infrastructure.Formatters
                 if (!string.IsNullOrWhiteSpace(config.WhereCondition))
                     sql += $" AND ({config.WhereCondition})";
 
-                using var cmd = new OracleCommand(sql, conn);
+                using var cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.Add(":bc", config.BranchCode);
                 cmd.Parameters.Add(":sd", ctx.StatementDate);
 
-                using var adapter = new OracleDataAdapter(cmd);
+                using var adapter = new SqlDataAdapter(cmd);
                 var dt = new DataTable();
                 adapter.Fill(dt);
 

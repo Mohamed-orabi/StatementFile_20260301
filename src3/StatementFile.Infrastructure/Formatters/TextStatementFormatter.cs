@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Text;
-using Oracle.ManagedDataAccess.Client;
+using Microsoft.Data.SqlClient;
 using StatementFile.Domain.Entities;
 using StatementFile.Domain.Interfaces;
 
@@ -34,7 +34,7 @@ namespace StatementFile.Infrastructure.Formatters
 
             try
             {
-                using var conn = new OracleConnection(ctx.ConnectionString);
+                using var conn = new SqlConnection(ctx.ConnectionString);
                 conn.Open();
 
                 var accounts = FetchAccounts(conn, masterTable, config, ctx.StatementDate);
@@ -103,7 +103,7 @@ namespace StatementFile.Infrastructure.Formatters
             return "CR";
         }
 
-        private static DataTable FetchAccounts(OracleConnection conn, string table,
+        private static DataTable FetchAccounts(SqlConnection conn, string table,
             BankProductConfig cfg, DateTime stmtDate)
         {
             var sql = $@"SELECT M.* FROM {table} M
@@ -113,16 +113,16 @@ namespace StatementFile.Infrastructure.Formatters
             if (!string.IsNullOrWhiteSpace(cfg.WhereCondition))
                 sql += $" AND ({cfg.WhereCondition})";
 
-            using var cmd = new OracleCommand(sql, conn);
+            using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.Add(":bc", cfg.BranchCode);
             cmd.Parameters.Add(":sd", stmtDate);
-            using var a = new OracleDataAdapter(cmd);
+            using var a = new SqlDataAdapter(cmd);
             var dt = new DataTable();
             a.Fill(dt);
             return dt;
         }
 
-        private static DataTable FetchTransactions(OracleConnection conn, string table,
+        private static DataTable FetchTransactions(SqlConnection conn, string table,
             string acctNo, DateTime stmtDate)
         {
             var sql = $@"SELECT D.* FROM {table} D
@@ -130,10 +130,10 @@ namespace StatementFile.Infrastructure.Formatters
                            AND TRUNC(D.STATEMENT_DATE) = TRUNC(:sd)
                          ORDER BY D.TRANSACTION_DATE";
 
-            using var cmd = new OracleCommand(sql, conn);
+            using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.Add(":an", acctNo);
             cmd.Parameters.Add(":sd", stmtDate);
-            using var a = new OracleDataAdapter(cmd);
+            using var a = new SqlDataAdapter(cmd);
             var dt = new DataTable();
             a.Fill(dt);
             return dt;

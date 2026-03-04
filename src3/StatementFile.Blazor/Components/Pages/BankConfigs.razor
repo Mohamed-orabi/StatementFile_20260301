@@ -1,0 +1,289 @@
+@page "/bank-configs"
+@using StatementFile.Application.DTOs
+@using StatementFile.Domain.Enums
+@using StatementFile.Blazor.Services
+@inject StatementApiClient Api
+@rendermode InteractiveServer
+
+<h1>Bank Configurations</h1>
+<p class="text-muted">Each row replaces one hardcoded case in the legacy switch statement.</p>
+
+@if (_error != null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+
+<button class="btn btn-primary mb-3" @onclick="OpenCreate">+ New Config</button>
+
+@if (_configs == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table table-striped table-sm table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th><th>Bank</th><th>Code</th><th>Suffix</th>
+                <th>Card</th><th>Output</th><th>Formatter Key</th><th>Active</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in _configs)
+            {
+                <tr>
+                    <td>@c.Id</td>
+                    <td>@c.BankFullName</td>
+                    <td>@c.BankCode</td>
+                    <td>@c.StatementTypeSuffix</td>
+                    <td>@c.CardType</td>
+                    <td>@c.OutputType</td>
+                    <td><code>@c.FormatterKey</code></td>
+                    <td>@(c.IsActive ? "✓" : "—")</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => OpenEdit(c)">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger"       @onclick="() => Delete(c.Id)">Del</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- Modal -->
+@if (_showForm)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(_editing.Id == 0 ? "New" : "Edit") Bank Config</h5>
+                    <button type="button" class="btn-close" @onclick="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+
+                        <!-- Bank -->
+                        <div class="col-md-4">
+                            <label class="form-label">Bank Name (short)</label>
+                            <input class="form-control" @bind="_editing.BankName" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Bank Full Name</label>
+                            <input class="form-control" @bind="_editing.BankFullName" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Bank Code</label>
+                            <input class="form-control" @bind="_editing.BankCode" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Branch Code</label>
+                            <input class="form-control" type="number" @bind="_editing.BranchCode" />
+                        </div>
+
+                        <!-- Product -->
+                        <div class="col-md-3">
+                            <label class="form-label">Statement Suffix</label>
+                            <input class="form-control" placeholder="CR / DB / CP" @bind="_editing.StatementTypeSuffix" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Card Type</label>
+                            <select class="form-select" @bind="_editing.CardType">
+                                <option value="1">Credit (CR)</option>
+                                <option value="2">Debit (DB)</option>
+                                <option value="3">Corporate / Prepaid (CP)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Card Product</label>
+                            <input class="form-control" @bind="_editing.CardProduct" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Output Type</label>
+                            <select class="form-select" @bind="_editing.OutputType">
+                                <option value="1">HTML</option>
+                                <option value="2">PDF</option>
+                                <option value="3">Text</option>
+                                <option value="4">Raw Data</option>
+                                <option value="5">XML</option>
+                                <option value="6">Email</option>
+                            </select>
+                        </div>
+
+                        <!-- Formatter -->
+                        <div class="col-md-6">
+                            <label class="form-label">Formatter Key</label>
+                            @if (_formatterKeys != null)
+                            {
+                                <select class="form-select" @bind="_editing.FormatterKey">
+                                    <option value="">— select —</option>
+                                    @foreach (var k in _formatterKeys)
+                                    {
+                                        <option value="@k">@k</option>
+                                    }
+                                </select>
+                            }
+                            else
+                            {
+                                <input class="form-control" @bind="_editing.FormatterKey" placeholder="HTML_UBA" />
+                            }
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Email From</label>
+                            <input class="form-control" @bind="_editing.EmailFromAddress" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Email From Name</label>
+                            <input class="form-control" @bind="_editing.EmailFromName" />
+                        </div>
+
+                        <!-- Branding -->
+                        <div class="col-md-6">
+                            <label class="form-label">Bank Web Link</label>
+                            <input class="form-control" @bind="_editing.BankWebLink" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Bank Logo URL</label>
+                            <input class="form-control" @bind="_editing.BankLogo" />
+                        </div>
+
+                        <!-- SQL filters -->
+                        <div class="col-12">
+                            <label class="form-label">WHERE Condition (SQL fragment)</label>
+                            <input class="form-control font-monospace" @bind="_editing.WhereCondition" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">VIP Condition</label>
+                            <input class="form-control font-monospace" @bind="_editing.VipCondition" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Currency Filter</label>
+                            <input class="form-control font-monospace" @bind="_editing.CurrencyFilter" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Reward Condition</label>
+                            <input class="form-control font-monospace" @bind="_editing.RewardCondition" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Payment System</label>
+                            <input class="form-control" @bind="_editing.PaymentSystem" />
+                        </div>
+
+                        <!-- Flags -->
+                        <div class="col-12">
+                            <div class="d-flex flex-wrap gap-3">
+                                <div class="form-check"><input class="form-check-input" type="checkbox" @bind="_editing.IsActive"          /><label class="form-check-label">Active</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" @bind="_editing.IsRewardRun"        /><label class="form-check-label">Reward Run</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" @bind="_editing.IsSplitOutput"      /><label class="form-check-label">Split Output</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" @bind="_editing.HasAttachment"      /><label class="form-check-label">Has Attachment</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" @bind="_editing.RunNullCardDelete"  /><label class="form-check-label">Delete Null Cards</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" @bind="_editing.RunCardBranchMatch" /><label class="form-check-label">Card Branch Match</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" @bind="_editing.ExcludeReward"      /><label class="form-check-label">Exclude Reward</label></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Wait Period (seconds)</label>
+                            <input class="form-control" type="number" @bind="_editing.WaitPeriodSeconds" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    @if (_saving)
+                    {
+                        <span class="text-muted me-3">Saving...</span>
+                    }
+                    <button class="btn btn-secondary" @onclick="Close">Cancel</button>
+                    <button class="btn btn-primary"   @onclick="Save">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    List<BankConfigDto> _configs;
+    List<string>        _formatterKeys;
+    BankConfigDto       _editing;
+    bool _showForm;
+    bool _saving;
+    string _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _formatterKeys = await Api.GetFormatterKeysAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        try   { _configs = await Api.GetAllConfigsAsync(); }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    void OpenCreate()
+    {
+        _editing  = new BankConfigDto { IsActive = true, RunNullCardDelete = true,
+            RunCardBranchMatch = true, ExcludeReward = true, CardType = CardType.Credit,
+            OutputType = StatementOutputType.Html };
+        _showForm = true;
+    }
+
+    void OpenEdit(BankConfigDto dto)
+    {
+        // Clone to avoid mutating the grid row until saved.
+        _editing = new BankConfigDto
+        {
+            Id = dto.Id, IsActive = dto.IsActive, BankName = dto.BankName,
+            BankFullName = dto.BankFullName, BankCode = dto.BankCode,
+            BranchCode = dto.BranchCode, StatementTypeSuffix = dto.StatementTypeSuffix,
+            CardType = dto.CardType, CardProduct = dto.CardProduct,
+            OutputType = dto.OutputType, FormatterKey = dto.FormatterKey,
+            BankWebLink = dto.BankWebLink, BankLogo = dto.BankLogo,
+            BackgroundImage = dto.BackgroundImage, MidBannerImage = dto.MidBannerImage,
+            BottomBannerImage = dto.BottomBannerImage,
+            EmailFromAddress = dto.EmailFromAddress, EmailFromName = dto.EmailFromName,
+            WhereCondition = dto.WhereCondition, VipCondition = dto.VipCondition,
+            RewardCondition = dto.RewardCondition,
+            RewardContractCondition = dto.RewardContractCondition,
+            CurrencyFilter = dto.CurrencyFilter, InstallmentCondition = dto.InstallmentCondition,
+            PaymentSystem = dto.PaymentSystem, ProcessingModes = dto.ProcessingModes,
+            IsRewardRun = dto.IsRewardRun, IsSplitOutput = dto.IsSplitOutput,
+            HasAttachment = dto.HasAttachment, SaveDataset = dto.SaveDataset,
+            ShowMessageBox = dto.ShowMessageBox, RunNullCardDelete = dto.RunNullCardDelete,
+            RunCardBranchMatch = dto.RunCardBranchMatch, ExcludeReward = dto.ExcludeReward,
+            WaitPeriodSeconds = dto.WaitPeriodSeconds,
+        };
+        _showForm = true;
+    }
+
+    async Task Save()
+    {
+        _saving = true;
+        _error  = null;
+        try
+        {
+            if (_editing.Id == 0)
+                await Api.CreateConfigAsync(_editing);
+            else
+                await Api.UpdateConfigAsync(_editing.Id, _editing);
+
+            _showForm = false;
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _saving = false; }
+    }
+
+    async Task Delete(int id)
+    {
+        _error = null;
+        try
+        {
+            await Api.DeleteConfigAsync(id);
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    void Close() => _showForm = false;
+}

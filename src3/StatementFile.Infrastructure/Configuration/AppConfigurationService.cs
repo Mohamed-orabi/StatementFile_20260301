@@ -13,9 +13,9 @@ namespace StatementFile.Infrastructure.Configuration
 
         public AppConfigurationService(IConfiguration config) => _config = config;
 
-        public string GetOracleConnectionString() =>
-            _config.GetConnectionString("Oracle")
-            ?? _config["Oracle:ConnectionString"];
+        public string GetSqlConnectionString() =>
+            _config.GetConnectionString("SqlServer")
+            ?? _config["SqlServer:ConnectionString"];
 
         public string GetStatementOutputPath() =>
             _config["StatementSettings:OutputPath"] ?? @"C:\StatementOutput";

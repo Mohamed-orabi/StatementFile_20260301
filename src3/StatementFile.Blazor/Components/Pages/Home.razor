@@ -1,0 +1,39 @@
+@page "/"
+@using StatementFile.Blazor.Services
+@inject StatementApiClient Api
+@rendermode InteractiveServer
+
+<h1>Dashboard</h1>
+
+<div class="card mt-3" style="max-width:400px">
+    <div class="card-body">
+        <h5 class="card-title">API Connection</h5>
+        @if (_checking)
+        {
+            <p class="text-muted">Checking...</p>
+        }
+        else if (_connected)
+        {
+            <p class="text-success fw-bold">&#10003; Connected to database</p>
+        }
+        else
+        {
+            <p class="text-danger fw-bold">&#10007; Cannot reach database</p>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Check">Re-check</button>
+    </div>
+</div>
+
+@code {
+    bool _checking;
+    bool _connected;
+
+    protected override async Task OnInitializedAsync() => await Check();
+
+    async Task Check()
+    {
+        _checking = true;
+        _connected = await Api.ValidateConnectionAsync();
+        _checking = false;
+    }
+}
