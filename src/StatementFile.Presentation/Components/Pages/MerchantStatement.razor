@@ -1,8 +1,10 @@
 @page "/merchant"
 @rendermode InteractiveServer
-@inject CompositionRoot Root
+@inject StatementApiClient Api
 @inject AppState AppState
 @inject NavigationManager Nav
+@using StatementFile.Application.DTOs
+@using StatementFile.Presentation.Services
 
 <PageTitle>Merchant Statement — StatementFile</PageTitle>
 
@@ -94,8 +96,8 @@
         var file = e.File;
         if (file.Size > MaxFileBytes)
         {
-            ResultIsError   = true;
-            ResultMessage   = $"File is too large (max {MaxFileBytes / 1024 / 1024} MB).";
+            ResultIsError = true;
+            ResultMessage = $"File is too large (max {MaxFileBytes / 1024 / 1024} MB).";
             return;
         }
 
@@ -113,23 +115,21 @@
         Busy          = true;
         ResultMessage = string.Empty;
 
-        // Write the uploaded XML to a temp file so the handler can read it.
-        string tempXml = Path.GetTempFileName() + ".xml";
         try
         {
-            await File.WriteAllBytesAsync(tempXml, UploadedBytes);
+            var req = new ProcessMerchantApiRequest
+            {
+                XmlContentBase64 = Convert.ToBase64String(UploadedBytes),
+                BankFullName     = BankFullName,
+                BankName         = BankName,
+                BankCode         = BankCode,
+                ProcessingDate   = ProcessingDate,
+            };
 
-            var cmd = new ProcessMerchantStatementCommand(
-                xmlSourceFilePath: tempXml,
-                bankFullName:      BankFullName,
-                bankName:          BankName,
-                bankCode:          BankCode,
-                processingDate:    ProcessingDate);
+            var result = await Api.ProcessMerchantAsync(req);
 
-            var result = await Task.Run(() => Root.MerchantHandler.Handle(cmd));
-
-            ResultIsError = result.IsFailure;
-            ResultMessage = result.IsSuccess
+            ResultIsError = !result.Success;
+            ResultMessage = result.Success
                 ? "Processed successfully."
                 : $"Error: {result.Error}";
         }
@@ -140,7 +140,6 @@
         }
         finally
         {
-            if (File.Exists(tempXml)) File.Delete(tempXml);
             Busy = false;
         }
     }

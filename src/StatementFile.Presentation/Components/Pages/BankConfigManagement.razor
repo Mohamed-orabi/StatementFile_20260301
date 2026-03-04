@@ -1,10 +1,11 @@
 @page "/bank-config"
 @rendermode InteractiveServer
-@inject CompositionRoot Root
+@inject StatementApiClient Api
 @inject AppState AppState
 @inject NavigationManager Nav
-@using StatementFile.Domain.Entities
+@using StatementFile.Application.DTOs
 @using StatementFile.Domain.Enums
+@using StatementFile.Presentation.Services
 
 <PageTitle>Bank Configuration — StatementFile</PageTitle>
 
@@ -95,7 +96,7 @@
                     <td>
                         <span class="badge bg-secondary">@cfg.FormatterKey</span>
                     </td>
-                    <td><small>@cfg.OutputType</small></td>
+                    <td><small>@((StatementOutputType)cfg.OutputType)</small></td>
                     <td><small>@cfg.StatementTypeSuffix</small></td>
                     <td><small>@cfg.ScheduledDay</small></td>
                     <td>
@@ -169,7 +170,7 @@
 
                 <div class="col-md-4">
                     <label class="form-label form-label-sm">Output Type</label>
-                    <select class="form-select form-select-sm" @bind="Form.OutputTypeInt">
+                    <select class="form-select form-select-sm" @bind="Form.OutputType">
                         @foreach (var v in Enum.GetValues<StatementOutputType>())
                         {
                             <option value="@((int)v)">@v</option>
@@ -192,7 +193,7 @@
                 <!-- ── Card classification ──────────────────────────────── -->
                 <div class="col-md-3">
                     <label class="form-label form-label-sm">Card Type</label>
-                    <select class="form-select form-select-sm" @bind="Form.CardTypeInt">
+                    <select class="form-select form-select-sm" @bind="Form.CardType">
                         @foreach (var v in Enum.GetValues<CardType>())
                         {
                             <option value="@((int)v)">@v</option>
@@ -201,7 +202,7 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label form-label-sm">Statement Type</label>
-                    <select class="form-select form-select-sm" @bind="Form.StatementTypeInt">
+                    <select class="form-select form-select-sm" @bind="Form.StatementType">
                         @foreach (var v in Enum.GetValues<StatementType>())
                         {
                             <option value="@((int)v)">@v</option>
@@ -247,8 +248,8 @@
                             <div class="form-check form-check-inline mb-0">
                                 <input class="form-check-input" type="checkbox"
                                        id="pm_@mode"
-                                       checked="@Form.HasMode(mode)"
-                                       @onchange="e => Form.ToggleMode(mode, (bool)e.Value)" />
+                                       checked="@HasMode(mode)"
+                                       @onchange="e => ToggleMode(mode, (bool)e.Value)" />
                                 <label class="form-check-label" for="pm_@mode">
                                     <small>@mode</small>
                                 </label>
@@ -342,7 +343,9 @@
         </div>
         <div class="card-footer d-flex gap-2 justify-content-end">
             <button class="btn btn-secondary btn-sm" @onclick="CloseForm">Cancel</button>
-            <button class="btn btn-primary btn-sm" @onclick="SaveForm">Save</button>
+            <button class="btn btn-primary btn-sm" @onclick="SaveForm" disabled="@FormBusy">
+                @(FormBusy ? "Saving…" : "Save")
+            </button>
         </div>
     </div>
 }
@@ -374,14 +377,14 @@
 
 @code {
     // ── Data ──────────────────────────────────────────────────────────────────
-    private List<BankProductConfig> All        { get; } = new();
-    private string                  SearchText      { get; set; } = string.Empty;
-    private string                  FilterOutputType{ get; set; } = string.Empty;
-    private string                  FilterActive    { get; set; } = string.Empty;
-    private string                  AlertMessage    { get; set; }
-    private bool                    AlertIsError    { get; set; }
+    private List<BankConfigDto> All             { get; } = new();
+    private string              SearchText      { get; set; } = string.Empty;
+    private string              FilterOutputType{ get; set; } = string.Empty;
+    private string              FilterActive    { get; set; } = string.Empty;
+    private string              AlertMessage    { get; set; }
+    private bool                AlertIsError    { get; set; }
 
-    private IEnumerable<BankProductConfig> Filtered =>
+    private IEnumerable<BankConfigDto> Filtered =>
         All.Where(c =>
         {
             if (!string.IsNullOrWhiteSpace(SearchText) &&
@@ -392,7 +395,7 @@
                 return false;
 
             if (!string.IsNullOrWhiteSpace(FilterOutputType) &&
-                (int)c.OutputType != int.Parse(FilterOutputType))
+                c.OutputType != int.Parse(FilterOutputType))
                 return false;
 
             if (!string.IsNullOrWhiteSpace(FilterActive) &&
@@ -407,14 +410,15 @@
         .Where(m => m != ProcessingMode.Standard)
         .ToArray();
 
-    protected override void OnInitialized() => LoadAll();
+    protected override async Task OnInitializedAsync() => await LoadAll();
 
-    private void LoadAll()
+    private async Task LoadAll()
     {
         All.Clear();
         try
         {
-            All.AddRange(Root.BankProductCfgRepo.GetAll());
+            var list = await Api.GetAllBankConfigsAsync();
+            All.AddRange(list);
         }
         catch (Exception ex)
         {
@@ -422,21 +426,75 @@
         }
     }
 
+    // ── Processing mode helpers ───────────────────────────────────────────────
+    private bool HasMode(ProcessingMode m) => ((ProcessingMode)Form.ProcessingModes).HasFlag(m);
+
+    private void ToggleMode(ProcessingMode m, bool on)
+    {
+        var current = (ProcessingMode)Form.ProcessingModes;
+        Form.ProcessingModes = (long)(on ? current | m : current & ~m);
+    }
+
     // ── Create / Edit form ────────────────────────────────────────────────────
     private bool       ShowForm  { get; set; }
-    private ConfigForm Form      { get; set; } = new();
+    private bool       FormBusy  { get; set; }
+    private BankConfigDto Form   { get; set; } = new();
     private string     FormError { get; set; }
 
     private void OpenCreateForm()
     {
-        Form      = new ConfigForm();
+        Form      = new BankConfigDto
+        {
+            StatementTypeSuffix          = "CR",
+            RewardContractCondition      = "'New Reward Contract'",
+            EmailFromAddress             = "cardservices@emp-group.com",
+            MaxTransactionsPerPage       = 20,
+            MaxTransactionsLastPage      = 27,
+            EmailWaitPeriodMs            = 7000,
+            FieldSeparator               = ",",
+            ScheduledDay                 = 1,
+            IsActive                     = true,
+        };
         FormError = null;
         ShowForm  = true;
     }
 
-    private void OpenEditForm(BankProductConfig cfg)
+    private void OpenEditForm(BankConfigDto cfg)
     {
-        Form      = ConfigForm.From(cfg);
+        // Shallow copy so edits don't affect the list until saved
+        Form = new BankConfigDto
+        {
+            Id                           = cfg.Id,
+            BranchCode                   = cfg.BranchCode,
+            BankName                     = cfg.BankName,
+            BankFullName                 = cfg.BankFullName,
+            CardProduct                  = cfg.CardProduct,
+            OutputType                   = cfg.OutputType,
+            FormatterKey                 = cfg.FormatterKey,
+            ProcessingModes              = cfg.ProcessingModes,
+            CardType                     = cfg.CardType,
+            StatementType                = cfg.StatementType,
+            StatementTypeSuffix          = cfg.StatementTypeSuffix,
+            RewardContractCondition      = cfg.RewardContractCondition ?? string.Empty,
+            InstallmentContractCondition = cfg.InstallmentContractCondition ?? string.Empty,
+            AppendMode                   = cfg.AppendMode,
+            UseCorporateAccountNumber    = cfg.UseCorporateAccountNumber,
+            ReportTemplateName           = cfg.ReportTemplateName  ?? string.Empty,
+            PdfPasswordScheme            = cfg.PdfPasswordScheme   ?? string.Empty,
+            EmailFromAddress             = cfg.EmailFromAddress     ?? "cardservices@emp-group.com",
+            BankWebsiteUrl               = cfg.BankWebsiteUrl      ?? string.Empty,
+            FacebookUrl                  = cfg.FacebookUrl          ?? string.Empty,
+            LinkedInUrl                  = cfg.LinkedInUrl          ?? string.Empty,
+            YouTubeUrl                   = cfg.YouTubeUrl           ?? string.Empty,
+            MaxTransactionsPerPage       = cfg.MaxTransactionsPerPage,
+            MaxTransactionsLastPage      = cfg.MaxTransactionsLastPage,
+            EmailWaitPeriodMs            = cfg.EmailWaitPeriodMs,
+            FieldSeparator               = cfg.FieldSeparator,
+            ScheduledDay                 = cfg.ScheduledDay,
+            DisplayName                  = cfg.DisplayName ?? string.Empty,
+            SortOrder                    = cfg.SortOrder,
+            IsActive                     = cfg.IsActive,
+        };
         FormError = null;
         ShowForm  = true;
     }
@@ -447,7 +505,7 @@
         FormError = null;
     }
 
-    private void SaveForm()
+    private async Task SaveForm()
     {
         FormError = null;
 
@@ -455,110 +513,59 @@
         if (string.IsNullOrWhiteSpace(Form.FormatterKey))   { FormError = "Formatter Key is required."; return; }
         if (Form.ScheduledDay < 1 || Form.ScheduledDay > 31){ FormError = "Scheduled Day must be 1–31."; return; }
 
+        FormBusy = true;
         try
         {
             if (Form.Id == 0)
             {
-                var entity = BankProductConfig.Create(
-                    branchCode:                    Form.BranchCode,
-                    bankName:                      Form.BankName,
-                    bankFullName:                  Form.BankFullName,
-                    cardProduct:                   Form.CardProduct,
-                    outputType:                    (StatementOutputType)Form.OutputTypeInt,
-                    formatterKey:                  Form.FormatterKey,
-                    processingModes:               Form.ProcessingModes,
-                    cardType:                      (CardType)Form.CardTypeInt,
-                    statementType:                 (StatementType)Form.StatementTypeInt,
-                    statementTypeSuffix:           Form.StatementTypeSuffix,
-                    rewardContractCondition:       Form.RewardContractCondition,
-                    installmentContractCondition:  Form.InstallmentContractCondition,
-                    appendMode:                    Form.AppendMode,
-                    useCorporateAccountNumber:     Form.UseCorporateAccountNumber,
-                    reportTemplateName:            Form.ReportTemplateName,
-                    pdfPasswordScheme:             string.IsNullOrEmpty(Form.PdfPasswordScheme) ? null : Form.PdfPasswordScheme,
-                    emailFromAddress:              Form.EmailFromAddress,
-                    bankWebsiteUrl:                Form.BankWebsiteUrl,
-                    facebookUrl:                   Form.FacebookUrl,
-                    linkedInUrl:                   Form.LinkedInUrl,
-                    youTubeUrl:                    Form.YouTubeUrl,
-                    maxTransactionsPerPage:        Form.MaxTransactionsPerPage,
-                    maxTransactionsLastPage:       Form.MaxTransactionsLastPage,
-                    emailWaitPeriodMs:             Form.EmailWaitPeriodMs,
-                    fieldSeparator:                Form.FieldSeparator,
-                    scheduledDay:                  Form.ScheduledDay,
-                    displayName:                   Form.DisplayName,
-                    sortOrder:                     Form.SortOrder,
-                    isActive:                      Form.IsActive);
-
-                int newId = Root.BankProductCfgRepo.Insert(entity);
+                var (newId, error) = await Api.CreateBankConfigAsync(Form);
+                if (error != null) { FormError = error; return; }
                 ShowAlert($"Configuration #{newId} created.");
             }
             else
             {
-                var entity = Root.BankProductCfgRepo.GetById(Form.Id);
-                if (entity == null) { FormError = "Record not found."; return; }
-
-                entity.Update(
-                    bankFullName:                 Form.BankFullName,
-                    cardProduct:                  Form.CardProduct,
-                    outputType:                   (StatementOutputType)Form.OutputTypeInt,
-                    formatterKey:                 Form.FormatterKey,
-                    processingModes:              Form.ProcessingModes,
-                    cardType:                     (CardType)Form.CardTypeInt,
-                    statementType:                (StatementType)Form.StatementTypeInt,
-                    statementTypeSuffix:          Form.StatementTypeSuffix,
-                    rewardContractCondition:      Form.RewardContractCondition,
-                    installmentContractCondition: Form.InstallmentContractCondition,
-                    appendMode:                   Form.AppendMode,
-                    useCorporateAccountNumber:    Form.UseCorporateAccountNumber,
-                    reportTemplateName:           Form.ReportTemplateName,
-                    pdfPasswordScheme:            string.IsNullOrEmpty(Form.PdfPasswordScheme) ? null : Form.PdfPasswordScheme,
-                    emailFromAddress:             Form.EmailFromAddress,
-                    bankWebsiteUrl:               Form.BankWebsiteUrl,
-                    facebookUrl:                  Form.FacebookUrl,
-                    linkedInUrl:                  Form.LinkedInUrl,
-                    youTubeUrl:                   Form.YouTubeUrl,
-                    maxTransactionsPerPage:       Form.MaxTransactionsPerPage,
-                    maxTransactionsLastPage:      Form.MaxTransactionsLastPage,
-                    emailWaitPeriodMs:            Form.EmailWaitPeriodMs,
-                    fieldSeparator:               Form.FieldSeparator,
-                    scheduledDay:                 Form.ScheduledDay,
-                    displayName:                  Form.DisplayName,
-                    sortOrder:                    Form.SortOrder,
-                    isActive:                     Form.IsActive);
-
-                Root.BankProductCfgRepo.Update(entity);
+                var error = await Api.UpdateBankConfigAsync(Form.Id, Form);
+                if (error != null) { FormError = error; return; }
                 ShowAlert($"Configuration #{Form.Id} updated.");
             }
 
             CloseForm();
-            LoadAll();
+            await LoadAll();
         }
         catch (Exception ex)
         {
             FormError = ex.Message;
         }
+        finally
+        {
+            FormBusy = false;
+        }
     }
 
     // ── Delete ────────────────────────────────────────────────────────────────
-    private BankProductConfig DeleteTarget { get; set; }
+    private BankConfigDto DeleteTarget { get; set; }
 
-    private void ConfirmDelete(BankProductConfig cfg) => DeleteTarget = cfg;
+    private void ConfirmDelete(BankConfigDto cfg) => DeleteTarget = cfg;
 
-    private void ExecuteDelete()
+    private async Task ExecuteDelete()
     {
         if (DeleteTarget == null) return;
         try
         {
-            Root.BankProductCfgRepo.Delete(DeleteTarget.Id);
-            ShowAlert($"Configuration #{DeleteTarget.Id} deleted.");
-            DeleteTarget = null;
-            LoadAll();
+            var error = await Api.DeleteBankConfigAsync(DeleteTarget.Id);
+            if (error != null)
+                ShowAlert($"Delete failed: {error}", error: true);
+            else
+                ShowAlert($"Configuration #{DeleteTarget.Id} deleted.");
         }
         catch (Exception ex)
         {
             ShowAlert($"Delete failed: {ex.Message}", error: true);
+        }
+        finally
+        {
             DeleteTarget = null;
+            await LoadAll();
         }
     }
 
@@ -567,88 +574,5 @@
     {
         AlertMessage = msg;
         AlertIsError = error;
-    }
-
-    // ── Form model ────────────────────────────────────────────────────────────
-    private sealed class ConfigForm
-    {
-        public int    Id                          { get; set; }
-        public int    BranchCode                  { get; set; }
-        public string BankName                    { get; set; } = string.Empty;
-        public string BankFullName                { get; set; } = string.Empty;
-        public string CardProduct                 { get; set; } = string.Empty;
-        public int    OutputTypeInt               { get; set; }
-        public string FormatterKey                { get; set; } = string.Empty;
-        public long   ProcessingModesRaw          { get; set; }
-        public int    CardTypeInt                 { get; set; }
-        public int    StatementTypeInt            { get; set; }
-        public string StatementTypeSuffix         { get; set; } = "CR";
-        public string RewardContractCondition     { get; set; } = "'New Reward Contract'";
-        public string InstallmentContractCondition{ get; set; } = string.Empty;
-        public bool   AppendMode                  { get; set; }
-        public bool   UseCorporateAccountNumber   { get; set; }
-        public string ReportTemplateName          { get; set; } = string.Empty;
-        public string PdfPasswordScheme           { get; set; } = string.Empty;
-        public string EmailFromAddress            { get; set; } = "cardservices@emp-group.com";
-        public string BankWebsiteUrl              { get; set; } = string.Empty;
-        public string FacebookUrl                 { get; set; } = string.Empty;
-        public string LinkedInUrl                 { get; set; } = string.Empty;
-        public string YouTubeUrl                  { get; set; } = string.Empty;
-        public int    MaxTransactionsPerPage      { get; set; } = 20;
-        public int    MaxTransactionsLastPage     { get; set; } = 27;
-        public int    EmailWaitPeriodMs           { get; set; } = 7000;
-        public string FieldSeparator              { get; set; } = ",";
-        public int    ScheduledDay                { get; set; } = 1;
-        public string DisplayName                 { get; set; } = string.Empty;
-        public int    SortOrder                   { get; set; }
-        public bool   IsActive                    { get; set; } = true;
-
-        public ProcessingMode ProcessingModes
-        {
-            get => (ProcessingMode)ProcessingModesRaw;
-            set => ProcessingModesRaw = (long)value;
-        }
-
-        public bool HasMode(ProcessingMode m) => ((ProcessingMode)ProcessingModesRaw).HasFlag(m);
-
-        public void ToggleMode(ProcessingMode m, bool on)
-        {
-            var current = (ProcessingMode)ProcessingModesRaw;
-            ProcessingModesRaw = (long)(on ? current | m : current & ~m);
-        }
-
-        public static ConfigForm From(BankProductConfig c) => new()
-        {
-            Id                           = c.Id,
-            BranchCode                   = c.BranchCode,
-            BankName                     = c.BankName,
-            BankFullName                 = c.BankFullName,
-            CardProduct                  = c.CardProduct,
-            OutputTypeInt                = (int)c.OutputType,
-            FormatterKey                 = c.FormatterKey,
-            ProcessingModesRaw           = (long)c.ProcessingModes,
-            CardTypeInt                  = (int)c.CardType,
-            StatementTypeInt             = (int)c.StatementType,
-            StatementTypeSuffix          = c.StatementTypeSuffix,
-            RewardContractCondition      = c.RewardContractCondition ?? string.Empty,
-            InstallmentContractCondition = c.InstallmentContractCondition ?? string.Empty,
-            AppendMode                   = c.AppendMode,
-            UseCorporateAccountNumber    = c.UseCorporateAccountNumber,
-            ReportTemplateName           = c.ReportTemplateName  ?? string.Empty,
-            PdfPasswordScheme            = c.PdfPasswordScheme   ?? string.Empty,
-            EmailFromAddress             = c.EmailFromAddress     ?? "cardservices@emp-group.com",
-            BankWebsiteUrl               = c.BankWebsiteUrl      ?? string.Empty,
-            FacebookUrl                  = c.FacebookUrl          ?? string.Empty,
-            LinkedInUrl                  = c.LinkedInUrl          ?? string.Empty,
-            YouTubeUrl                   = c.YouTubeUrl           ?? string.Empty,
-            MaxTransactionsPerPage       = c.MaxTransactionsPerPage,
-            MaxTransactionsLastPage      = c.MaxTransactionsLastPage,
-            EmailWaitPeriodMs            = c.EmailWaitPeriodMs,
-            FieldSeparator               = c.FieldSeparator,
-            ScheduledDay                 = c.ScheduledDay,
-            DisplayName                  = c.DisplayName ?? string.Empty,
-            SortOrder                    = c.SortOrder,
-            IsActive                     = c.IsActive,
-        };
     }
 }

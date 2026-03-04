@@ -1,8 +1,9 @@
 @page "/login"
 @rendermode InteractiveServer
-@inject CompositionRoot Root
+@inject StatementApiClient Api
 @inject AppState AppState
 @inject NavigationManager Nav
+@using StatementFile.Presentation.Services
 
 <PageTitle>Login — StatementFile</PageTitle>
 
@@ -45,9 +46,9 @@
 </div>
 
 @code {
-    private LoginModel Model { get; } = new();
-    private string ErrorMessage { get; set; } = string.Empty;
-    private bool   Busy        { get; set; }
+    private LoginModel Model        { get; } = new();
+    private string     ErrorMessage { get; set; } = string.Empty;
+    private bool       Busy         { get; set; }
 
     protected override void OnInitialized()
     {
@@ -60,27 +61,20 @@
         Busy         = true;
         ErrorMessage = string.Empty;
 
-        try
-        {
-            // Validate credentials by opening (and immediately disposing) a UnitOfWork.
-            // Legacy behaviour: frmBasLogin opened a raw OracleConnection here.
-            await Task.Run(() =>
-            {
-                using var uow = Root.CreateUnitOfWork();
-            });
+        var (success, error) = await Api.ValidateConnectionAsync();
 
+        if (success)
+        {
             AppState.IsLoggedIn = true;
             AppState.UserName   = Model.UserName;
             Nav.NavigateTo("/");
         }
-        catch (Exception ex)
+        else
         {
-            ErrorMessage = $"Login failed: {ex.Message}";
+            ErrorMessage = $"Login failed: {error}";
         }
-        finally
-        {
-            Busy = false;
-        }
+
+        Busy = false;
     }
 
     private sealed class LoginModel
