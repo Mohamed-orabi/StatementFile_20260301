@@ -10,12 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Shared DTOs from Application layer; no Infrastructure/Domain reference needed. -->
+    <ProjectReference Include="..\StatementFile.Domain\StatementFile.Domain.csproj" />
     <ProjectReference Include="..\StatementFile.Application\StatementFile.Application.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
